@@ -2351,12 +2351,24 @@ class ExtratorProposta:
             d.entregas = unicas
             d.avisos.append("%d local(is) de entrega vieram da proposta — confira."
                             % len(unicas))
+        # BLOCOS POR LOCALIDADE ("PA - GUAMÁ" / "Entrega: ..."): a proposta já
+        # enumera os locais, um por bloco. Vem depois das outras leituras
+        # porque é a mais específica — só entra se nada antes achou nada.
+        if not d.entregas:
+            blocos = self._entregas_rotuladas(texto)
+            if blocos:
+                d.entregas = blocos
+                d.avisos.append(
+                    "%d local(is) de entrega vieram dos blocos da proposta "
+                    "(%s) — confira."
+                    % (len(blocos), ", ".join(b["nome"] for b in blocos[:4])))
         if not d.faturamentos:
             d.faturamentos = self._faturamento_da_proposta(texto, d.cnpj)
             if d.faturamentos:
-                d.avisos.append("Faturamento da proposta: %s (%s) — confira."
-                                % (d.faturamentos[0].get("uf", ""),
-                                   d.faturamentos[0].get("cnpj", "")))
+                d.avisos.append(
+                    "Faturamento da proposta: %s — confira."
+                    % ", ".join("%s (%s)" % (f.get("uf", ""), f.get("cnpj", ""))
+                                for f in d.faturamentos))
         # O local lido da proposta é só um nome; o cadastro tem o endereço.
         d.entregas = self.completar_entregas(d.entregas)
 
@@ -2429,11 +2441,21 @@ class ExtratorProposta:
         return brl_para_float(m.group(1)) if m else None
 
     def _faturamento_da_proposta(self, texto: str, cnpj_forn: str) -> list[dict]:
-        """A filial da Eletronet que a proposta nomeia, casada pelo CNPJ.
+        """TODAS as filiais da Eletronet que a proposta nomeia, casadas pelo CNPJ.
 
         Só CNPJ: é identidade (14 dígitos são de um estabelecimento só), enquanto
         nome e cidade são indício e casariam a filial errada. O CNPJ do próprio
         FORNECEDOR também está na folha — fica de fora pela comparação direta.
+
+        TODAS, no plural, e isso já foi um defeito: a função devolvia no
+        `return` de dentro do laço, ou seja, parava na PRIMEIRA que encontrasse.
+        A ARTEMIS 207.2026 lista quatro (PA, PR, BA e RS), uma por localidade de
+        entrega, e a AF saía com uma só — a que viesse antes no catálogo, que
+        nem é a primeira do documento.
+
+        A ordem de saída é a ORDEM DA PROPOSTA, não a do catálogo: o documento
+        agrupa entrega e faturamento por localidade, e manter a sequência deixa
+        as duas listas na mesma ordem para quem for conferir.
         """
         try:
             from .dados_eletronet import locais_faturamento
@@ -2442,15 +2464,92 @@ class ExtratorProposta:
             LOG.warning("não consegui ler os locais de faturamento: %s", exc)
             return []
         so_num = lambda x: re.sub(r"\D", "", str(x or ""))     # noqa: E731
-        na_folha = set(so_num(c) for c in re.findall(
-            r"\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}", texto or ""))
-        na_folha.discard(so_num(cnpj_forn))
-        for loc in locais:
-            if so_num(loc.get("cnpj")) in na_folha:
-                LOG.info("faturamento identificado na proposta: %s (%s)",
-                         loc.get("uf"), loc.get("cnpj"))
-                return [dict(loc)]
-        return []
+        # ordem de APARIÇÃO, sem repetir
+        vistos, ordem = set(), []
+        for m in re.finditer(r"\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}", texto or ""):
+            n = so_num(m.group(0))
+            if n not in vistos:
+                vistos.add(n)
+                ordem.append(n)
+        alvo = so_num(cnpj_forn)
+        por_cnpj = {so_num(l.get("cnpj")): l for l in locais if l.get("cnpj")}
+        achados = []
+        for n in ordem:
+            if n == alvo or n not in por_cnpj:
+                continue
+            loc = por_cnpj[n]
+            achados.append(dict(loc))
+            LOG.info("faturamento identificado na proposta: %s (%s)",
+                     loc.get("uf"), loc.get("cnpj"))
+        return achados
+
+    # Cabeçalho de bloco por localidade: "PA - GUAMÁ", "RS - PASSO FUNDO".
+    _CAB_LOCALIDADE = re.compile(
+        r"^[ \t]*([A-Z]{2})[ \t]*[-–][ \t]*([A-ZÀ-Ÿ0-9][A-ZÀ-Ÿ0-9 .'/\-]{1,48})[ \t]*$")
+    # "Entrega: Avenida Perimetral, 33 - Guamá - Belém/PA"
+    _LINHA_ENTREGA = re.compile(r"^[ \t]*Entrega[ \t]*:[ \t]*(.+?)[ \t]*$", re.I)
+    # o fim do endereço costuma ser "Município/UF"
+    _FIM_MUNICIPIO_UF = re.compile(r"([A-Za-zÀ-ÿ.'\- ]{2,40})/([A-Z]{2})[ \t]*$")
+
+    # conectivos que ficam em minúscula num nome próprio em português
+    _MINUSCULAS = {"de", "da", "do", "das", "dos", "e", "a", "o", "em"}
+
+    @classmethod
+    def _nome_proprio(cls, t: str) -> str:
+        """"FOZ DO IGUAÇU" -> "Foz do Iguaçu".
+
+        O `.title()` sozinho devolve "Foz Do Iguaçu": ele não sabe que "do" é
+        conectivo. Aqui o catálogo ainda corrigiria (ele casa sem acento e sem
+        caixa), mas quando o POP não está cadastrado é ESTE nome que vai para a
+        AF — e sai torto.
+        """
+        palavras = " ".join(str(t or "").split()).lower().split(" ")
+        return " ".join(p if i and p in cls._MINUSCULAS else p.capitalize()
+                        for i, p in enumerate(palavras))
+
+    def _entregas_rotuladas(self, texto: str) -> list[dict]:
+        """Locais de entrega que a proposta LISTA, um bloco por localidade.
+
+        A ARTEMIS 207.2026 escreve assim, e traz tudo pronto:
+
+            PA - GUAMÁ
+            Entrega: Avenida Perimetral, 33 - Guamá - Belém/PA
+            ELETRONET S.A - FILIAL | CNPJ: ... | UF: PA
+            Faturamento: ...
+
+        O NOME vem do cabeçalho do bloco (a localidade), não do endereço: é ele
+        que casa com o POP do cadastro — "Guamá", "Foz do Iguaçu", "Barreiras",
+        "Passo Fundo". O endereço e o município ficam como estão escritos, e
+        `completar_entregas` depois troca pelo registro do cadastro quando
+        reconhecer o POP, preenchendo a sigla.
+
+        Sem isto a AF saía com ZERO locais numa proposta que os enumera — e
+        preencher quatro endereços à mão é justamente o trabalho que o app
+        existe para evitar.
+        """
+        achados, cab = [], None
+        for linha in (texto or "").splitlines():
+            m = self._CAB_LOCALIDADE.match(linha)
+            if m:
+                cab = (m.group(1), self._nome_proprio(m.group(2)))
+                continue
+            m = self._LINHA_ENTREGA.match(linha)
+            if not m:
+                continue
+            end = " ".join(m.group(1).split())
+            uf, nome = (cab or ("", ""))
+            mun = ""
+            mm = self._FIM_MUNICIPIO_UF.search(end)
+            if mm:
+                mun = mm.group(1).strip(" -")
+                uf = uf or mm.group(2)
+            if not nome:
+                nome = mun
+            if nome:
+                achados.append({"nome": nome, "sigla": "", "endereco": end,
+                                "municipio": mun, "uf": uf})
+            cab = None            # cada cabeçalho serve a UMA entrega
+        return achados
 
     # "Guarulhos (SP)", "Barreiro (MG)" — uma ponta do serviço.
     _CIDADE_UF = re.compile(r"([A-ZÀ-Ú][A-Za-zÀ-ÿ.'\- ]{2,30}?)\s*\(\s*([A-Z]{2})\s*\)")
@@ -2602,33 +2701,115 @@ class ExtratorProposta:
                         % float_para_brl(frete))
 
     def _tirar_linhas_de_grupo(self, d: DadosProposta) -> None:
-        """Tira da lista o SUBTOTAL que veio com cara de produto.
+        """Tira da lista os SUBTOTAIS que vieram com cara de produto.
 
         Na Padtec a linha "Equipamentos -" não tem quantidade nem código e o
-        total dela é a soma das linhas de baixo — um subtotal de grupo. Entrando
+        total dela é a soma das linhas de baixo — um subtotal de seção. Entrando
         na lista, a soma dos itens dava o DOBRO da proposta.
 
-        A regra de nome não pega (a linha se chama "Equipamentos"); quem pega é
-        a conta: total da linha == soma de TODAS as outras. Sem quantidade e sem
-        código, porque um produto de verdade tem pelo menos um dos dois.
+        A regra de NOME não pega (a linha se chama "Equipamentos"); quem pega é
+        a conta. Sem quantidade e sem código, porque um produto de verdade tem
+        pelo menos um dos dois.
+
+        POR QUE NÃO BASTA "a soma de todas as outras"
+        ---------------------------------------------
+        Era assim que esta função funcionava, e ela só enxergava UM subtotal,
+        aquele que cobria a tabela inteira. A Padtec 2026-2023 tem DOIS, cada um
+        cobrindo só a sua seção:
+
+            Equipamentos -                  573.711,44   <- cobre as 2 de baixo
+              Duplo Muxponder 400G   x5     565.628,22
+              Unidade de Ventilação  x5       8.083,23
+            Licenças e Software -             1.020,41   <- cobre a de baixo
+              Licença interface DWDM x10      1.020,41
+
+        Nenhum dos dois é "a soma de todas as outras", então os dois passavam e
+        a soma dava 1.149.463,71 para uma proposta de 574.731,85 — o dobro.
+
+        Agora a varredura é por SEÇÃO: o subtotal cobre a sequência de linhas
+        vizinhas até onde o próximo subtotal começa. Vale para baixo e para
+        cima, porque há tabela que põe o subtotal no fim do grupo.
+
+        E o ORÁCULO fecha a regra: só remove se o que sobrar bater com o total
+        anunciado. Sem isso, "linha sem quantidade cuja conta casa" tiraria um
+        produto de verdade da AF — e item que some é pior que item a mais,
+        porque ninguém percebe a falta.
         """
-        if len(d.itens) < 3:                 # com 2 itens, "a soma das outras" é o outro
+        if len(d.itens) < 3:                 # com 2, "a soma das outras" é o outro
             return
         totais = [brl_para_float(i.preco_total_com) for i in d.itens]
         if any(v is None for v in totais):
             return
-        soma = sum(totais)
-        for i, it in enumerate(list(d.itens)):
-            if (it.quantidade or "").strip() or (it.codigo or "").strip():
-                continue
-            outras = soma - totais[i]
-            if outras > 0 and abs(totais[i] - outras) <= max(0.01, 0.001 * outras):
-                d.itens.remove(it)
-                d.avisos.append(
-                    "A linha %r era um subtotal de grupo (o valor dela é a soma "
-                    "das outras) e saiu da lista de itens."
-                    % (it.descricao or "")[:40])
-                return
+
+        def sem_identidade(it) -> bool:
+            """Produto de verdade costuma ter quantidade OU código."""
+            return not (it.quantidade or "").strip() and not (it.codigo or "").strip()
+
+        # CANDIDATO é quem a CONTA acusa, não quem "parece" subtotal.
+        # A linha "Licenças e Software de Gerência -" da Padtec traz quantidade
+        # 1 e mesmo assim é subtotal: exigir "sem quantidade" a deixava passar,
+        # e aí sobrava 1.020,41 contado duas vezes — o oráculo então recusava a
+        # remoção do outro subtotal também, e nada era corrigido.
+        n = len(d.itens)
+        candidatos: set[int] = set()
+        for i in range(n):
+            for passo in (1, -1):            # a seção pode estar abaixo ou acima
+                acc = 0.0
+                j = i + passo
+                while 0 <= j < n:
+                    acc += totais[j]
+                    if abs(totais[i] - acc) <= max(0.01, 0.001 * abs(acc)):
+                        candidatos.add(i)
+                        break
+                    j += passo
+                if i in candidatos:
+                    break
+        if not candidatos:
+            return
+
+        # ORÁCULO: sem o total anunciado não há como conferir, e aí não se mexe.
+        alvo = brl_para_float(d.valor_total) if d.valor_total else None
+        if alvo is None:
+            return
+
+        def fecha(conjunto) -> bool:
+            if not conjunto or len(conjunto) >= n:
+                return False
+            sobra = sum(v for k, v in enumerate(totais) if k not in conjunto)
+            return abs(sobra - alvo) <= max(0.02, 0.001 * abs(alvo))
+
+        # QUAIS candidatos remover, de fato. Não dá para remover todos: na
+        # Padtec o último produto (1.020,41) espelha o subtotal logo acima dele
+        # e entra na lista de candidatos sem ser subtotal. Tirando os três, a
+        # conta não fecha; tirando só o "sem quantidade", também não. O certo
+        # ali é {Equipamentos, Licenças} — e quem sabe disso é a conta.
+        #
+        # Então prova-se combinação por combinação, das MENORES para as
+        # maiores: remover de menos é mais seguro do que remover demais, e a
+        # primeira que bate com o total anunciado é a resposta. São poucos
+        # candidatos; o teto existe só para o caso patológico.
+        import itertools
+        ordenados = sorted(candidatos,
+                           key=lambda i: (not sem_identidade(d.itens[i]), i))
+        if len(ordenados) > 12:
+            return
+        remover = None
+        for tamanho in range(1, len(ordenados) + 1):
+            for comb in itertools.combinations(ordenados, tamanho):
+                if fecha(set(comb)):
+                    remover = set(comb)
+                    break
+            if remover:
+                break
+        if not remover:
+            return
+
+        nomes = [(d.itens[k].descricao or "")[:34] for k in sorted(remover)]
+        d.itens = [it for k, it in enumerate(d.itens) if k not in remover]
+        d.avisos.append(
+            "%s saiu da lista: era subtotal de seção (o valor é a soma das "
+            "linhas do grupo), não produto. Agora os itens somam o total."
+            % ("; ".join(repr(x) for x in nomes)))
 
     def _avisar_divergencia_total(self, d: DadosProposta):
         """Soma os totais dos itens e compara com o valor total da proposta —
