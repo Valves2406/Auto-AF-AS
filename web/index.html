@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto AF/AS — Eletronet</title>
+  <!-- o MESMO arquivo do ícone do executável: ele traz 16..256px dentro,
+       e o Windows escolhe o tamanho em vez de esticar um PNG -->
+  <link rel="icon" href="app.ico" sizes="any" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body class="dark">
+  <!-- Tela de carregamento: fica na frente até o motor terminar de aquecer
+       (catálogo, leitura de planilha/PDF, montagem de documento). -->
+  <div class="splash" id="splash">
+    <div class="splash-box">
+      <!-- a marca já traz símbolo, nome e "by eletronet" desenhados juntos:
+           repetir logo + "Axia Energia" + título seria dois cabeçalhos -->
+      <img class="splash-marca" src="marca.png"
+           alt="Auto AF/AS — by Eletronet" />
+      <p class="splash-sub">Autorização de Fornecimento e Serviço · Coleta de Preços</p>
+      <div class="splash-barra"><i id="splashBarra"></i></div>
+      <div class="splash-passo" id="splashPasso">Iniciando o motor…</div>
+      <ul class="splash-lista" id="splashLista"></ul>
+      <button class="btn ghost sm splash-pular" id="splashPular" hidden>Continuar mesmo assim</button>
+    </div>
+    <!-- O que a Eletronet é: fibra pendurada na linha de transmissão. A luz
+         corre pelo cabo enquanto o motor aquece. -->
+    <svg class="torres" viewBox="0 0 520 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false"><path class="tr-estrutura" d="M27.0 100 L40.0 38.0 L53.0 100 M31.9 78.9 L48.1 78.9 M23.0 47.9 L57.0 47.9 M17.0 59.1 L63.0 59.1 M137.0 100 L150.0 38.0 L163.0 100 M141.9 78.9 L158.1 78.9 M133.0 47.9 L167.0 47.9 M127.0 59.1 L173.0 59.1 M249.0 100 L262.0 38.0 L275.0 100 M253.9 78.9 L270.1 78.9 M245.0 47.9 L279.0 47.9 M239.0 59.1 L285.0 59.1 M359.0 100 L372.0 38.0 L385.0 100 M363.9 78.9 L380.1 78.9 M355.0 47.9 L389.0 47.9 M349.0 59.1 L395.0 59.1 M467.0 100 L480.0 38.0 L493.0 100 M471.9 78.9 L488.1 78.9 M463.0 47.9 L497.0 47.9 M457.0 59.1 L503.0 59.1"/><path class="tr-cabo" d="M40.0 59.1 Q95.0 70.1 150.0 59.1 M150.0 59.1 Q206.0 70.1 262.0 59.1 M262.0 59.1 Q317.0 70.1 372.0 59.1 M372.0 59.1 Q426.0 70.1 480.0 59.1"/><path class="tr-luz" d="M40.0 59.1 Q95.0 70.1 150.0 59.1 M150.0 59.1 Q206.0 70.1 262.0 59.1 M262.0 59.1 Q317.0 70.1 372.0 59.1 M372.0 59.1 Q426.0 70.1 480.0 59.1"/></svg>
+  </div>
+
+  <!-- ARRASTAR E SOLTAR: a capa cobre a janela inteira enquanto há arquivo
+       sendo arrastado. Fica FORA de qualquer aba para valer em todas elas. -->
+  <div class="drop-capa" id="dropCapa" hidden>
+    <div class="drop-alvo">
+      <div class="drop-fita" aria-hidden="true">
+        <svg viewBox="0 0 120 60" focusable="false">
+          <path d="M14 30 C14 12, 46 12, 60 30 C74 48, 106 48, 106 30 C106 12, 74 12, 60 30 C46 48, 14 48, 14 30 Z"/>
+        </svg>
+      </div>
+      <strong>Solte a proposta aqui</strong>
+      <span>PDF, ou a planilha da CIENA (.xlsx / .xlsm).<br>
+            Pode soltar as duas partes de uma proposta repartida de uma vez.</span>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <!-- Marca e contexto ficam no mesmo bloco: a barra passa a funcionar como
+         uma bancada de trabalho, e não como uma sequência de botões soltos. -->
+    <div class="marca">
+      <img class="faixa" src="faixa.png" alt="Auto AF/AS — by Eletronet · Axia Energia" />
+      <span class="marca-legenda">Plataforma de documentos</span>
+    </div>
+    <div class="titles">
+      <span>ELETRONET · ENGENHARIA</span>
+      <p>Emissão de AF/AS e CPM/CPS</p>
+    </div>
+    <nav class="tabs" aria-label="Área de trabalho">
+      <span class="nav-caption" aria-hidden="true">DOCUMENTOS</span>
+      <button class="tab active" id="tabGerar" title="Gerar AF/AS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12h6M9 16h4"/></svg><span class="rot">Gerar AF/AS</span></button>
+      <button class="tab" id="tabCPM" title="CPM/CPS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h2m3 0h3M8 16h2m3 0h3"/></svg><span class="rot">CPM/CPS</span></button>
+      <button class="tab" id="tabCadastros" title="Cadastros"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h7l2 3h9v12H3zM12 11v6m-3-3h6"/></svg><span class="rot">Cadastros</span></button>
+      <button class="tab" id="tabExcluir" title="Excluir e gerenciar registros"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg><span class="rot">Excluir</span></button>
+      <!-- A fita de Möbius é a marca da casa: um laço sem começo nem fim, o
+           fluxo contínuo da fibra. Substituiu um risquinho listrado que não
+           queria dizer nada. -->
+      <span class="nav-signature" aria-hidden="true">
+        <svg class="nav-fita" viewBox="0 0 120 60" focusable="false">
+          <path d="M14 30 C14 12, 46 12, 60 30 C74 48, 106 48, 106 30 C106 12, 74 12, 60 30 C46 48, 14 48, 14 30 Z"/>
+        </svg>
+        ELETRONET<small>ENGENHARIA</small>
+      </span>
+    </nav>
+    <div class="topbar-tools">
+      <button class="btn ghost" id="btnTema" data-curto="Tema" title="Alternar tema claro/escuro">☀ <span class="rot">Tema</span></button>
+      <div id="acoesGerar" class="acoes">
+        <div class="tool-group tool-source">
+          <label class="pdfsel">PDF
+            <!-- a PRIMEIRA opção é o padrão: o Visual é o mesmo documento da
+                 prévia, então o que se vê na tela é o que sai no PDF -->
+            <select id="pdfEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet.">
+              <option value="html">Visual (HTML)</option>
+              <option value="excel">Oficial</option>
+            </select>
+          </label>
+          <button class="btn soft" id="btnLer" data-curto="Ler" title="Ler proposta — PDF comum ou Excel (CIENA/DDPTool). Pode escolher VÁRIOS arquivos quando a proposta vem repartida (técnica + comercial).">📂 <span class="rot">Ler proposta</span></button>
+          <button class="btn soft" id="btnImportarAF" data-curto="Importar" title="Ler uma AF/AS já pronta (.xlsx ou o PDF gerado pelo app) e trazer todas as informações de volta">📥 <span class="rot">Importar AF</span></button>
+          <button class="btn soft" id="btnLimparAF" data-curto="Limpar" type="button" title="Limpar todos os campos da AF e começar do zero">✕ <span class="rot">Limpar</span></button>
+        </div>
+        <div class="tool-group tool-output">
+          <button class="btn soft" id="btnExcel" data-curto="Excel" title="Baixar em Excel (.xlsx)">📊 <span class="rot">Excel</span></button>
+          <button class="btn primary" id="btnPdf" data-curto="Gerar PDF" title="Gerar o PDF da AF">📄 <span class="rot">Gerar PDF</span></button>
+        </div>
+        <!-- VÁRIAS PARTES: Precision e SEICOM mandam a proposta repartida
+             (técnica + comercial), e nenhuma delas sozinha tem tudo -->
+        <input type="file" id="filePdf" accept=".pdf,.xlsx,.xlsm" multiple hidden />
+        <input type="file" id="fileAF" accept=".xlsx,.xlsm,.pdf" hidden />
+      </div>
+    </div>
+  </header>
+
+  <div class="banner"><span>⚠ Em desenvolvimento por Vinícius — Engenharia de Redes • versão em fase de testes
+    <b id="versaoApp" class="versao" title="Versão desta cópia do app. Seus cadastros ficam fora dela e não se perdem ao atualizar."></b></span></div>
+  <div class="ciena-bar" id="cienaBar" hidden>
+    <span id="cienaInfo"></span>
+    <button class="btn" id="btnCienaTrocar">🔀 Trocar</button>
+  </div>
+
+  <!-- ============================ ABA: GERAR AF ============================ -->
+  <div class="split" id="viewGerar">
+    <!-- ======================= FORMULÁRIO ======================= -->
+    <div class="form-col">
+      <div class="form-context" aria-label="Etapas da emissão">
+        <div class="form-context-title">
+          <span>EMISSÃO DE DOCUMENTOS</span>
+          <strong>Nova AF / AS<span class="context-line" aria-hidden="true"></span></strong>
+        </div>
+        <div class="form-steps" role="navigation" aria-label="Ir para uma etapa do formulário">
+          <button type="button" class="active" data-jump="secFornecedor"><b>01</b><span>Fornecedor</span></button>
+          <button type="button" data-jump="secDados"><b>02</b><span>Condições</span></button>
+          <button type="button" data-jump="secDocumento"><b>03</b><span>Documento</span></button>
+          <button type="button" data-jump="secItens"><b>04</b><span>Itens</span></button>
+        </div>
+      </div>
+
+      <section class="card" id="secFornecedor">
+        <h2>Fornecedor <span class="cat-conta muted" id="catCount"></span></h2>
+        <div class="ac cat-busca">
+          <input id="catBusca" class="ac-inp" autocomplete="off"
+                 placeholder="🔎 buscar no catálogo — apelido, razão social ou CNPJ" />
+          <div class="ac-lista" id="catLista" hidden></div>
+        </div>
+        <select id="catalogo" class="catalogo-oculto" tabindex="-1" aria-hidden="true"><option value="-1">— selecione —</option></select>
+        <div class="cat-marca" id="catMarca" hidden>
+          <span id="catMarcaNome"></span>
+          <button type="button" class="chipx" id="catMarcaX" title="Soltar do catálogo e editar à mão">✕</button>
+        </div>
+        <div class="fgrid">
+          <div class="f c12"><label>Nome do fornecedor <b>*</b></label><input id="fornecedor" /></div>
+          <div class="f c5"><label>CNPJ</label><input id="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" /></div>
+          <div class="f c4"><label>Inscrição Estadual</label><input id="ie" /></div>
+          <div class="f c3"><label>CEP</label><input id="cep" inputmode="numeric" placeholder="00000-000" /></div>
+          <div class="f c12"><label>Endereço</label><input id="endereco" /></div>
+          <div class="f c6"><label title="Data em que o fornecedor emitiu a proposta">Data da proposta</label><input id="dataProp" /></div>
+          <div class="f c6"><label>Garantia <button type="button" class="lnkmini" id="btnPorItemGarantia" title="Definir garantia por produto (cada item pode ter garantia diferente)">🛠 por produto</button></label>
+            <div class="numunit">
+              <input id="garantiaNum" placeholder="12" />
+              <select id="garantiaUn"><option>Dias</option><option selected>Meses</option><option>Anos</option><option>Ano</option><option>Livre</option></select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="secDados">
+        <h2>Dados da AF</h2>
+        <div class="fgrid">
+          <div class="f c7"><label>Nº da proposta</label><input id="numProp" /></div>
+          <div class="f c5"><label>Moeda</label><select id="moeda"></select></div>
+          <div class="f c6"><label>Valor total <b>*</b> <button type="button" class="lnkmini" id="btnSomar" title="Somar o total (c/ impostos) de todos os itens">Σ somar itens</button></label><input id="valor" placeholder="soma dos itens (c/ impostos)" /></div>
+          <div class="f c6"><label>Prazo de entrega <button type="button" class="lnkmini" id="btnPorItemPrazo" title="Definir prazo de entrega por produto (cada item pode ter prazo diferente)">🛠 por produto</button></label>
+            <div class="numunit">
+              <input id="prazoNum" placeholder="45" />
+              <select id="prazoUn"><option selected>Dias</option><option>Meses</option><option>Anos</option><option>Ano</option><option>Pronta-entrega</option><option>Livre</option></select>
+            </div>
+          </div>
+          <div class="f c12"><label>Condição de pagamento</label><input id="pagto" /></div>
+          <div class="f c12"><label>Objeto do fornecimento <button type="button" class="lnkmini" id="btnResumir" title="Gerar um resumo a partir dos itens">✨ resumir dos itens</button></label><input id="objeto" placeholder="Resumo de tudo que está sendo fornecido" /></div>
+        </div>
+      </section>
+
+      <section class="card" id="secDocumento">
+        <h2>Identificador</h2>
+        <div class="fgrid">
+          <div class="f c4"><label>Prefixo</label><select id="prefixo"></select></div>
+          <div class="f c4"><label>Número <b>*</b></label><input id="numero" placeholder="207" /></div>
+          <div class="f c4"><label>Ano</label><input id="ano" /></div>
+          <div class="f c4"><label>Modificação</label><select id="mod"></select></div>
+          <div class="f c4"><label>Emissão</label><input id="dataEmis" /></div>
+          <div class="f c4"><label>Revisão</label><input id="rev" value="0" /></div>
+        </div>
+        <!-- Como o documento vai se chamar, montado ao vivo: o identificador sai
+             de seis campos e só aparecia depois de gerar o arquivo. -->
+        <div class="idprev">
+          <div class="idprev-l">
+            <span class="idprev-rot">Documento</span>
+            <b id="idPrevDoc">—</b>
+          </div>
+          <div class="idprev-l">
+            <span class="idprev-rot">Arquivo</span>
+            <code id="idPrevArq">—</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="secLocais">
+        <h2>Locais <span class="muted">(pode adicionar vários por AF)</span></h2>
+        <label>Faturamento (Eletronet) <span class="muted">— ao escolher, os POPs do mesmo estado sobem ao topo</span></label>
+        <div class="addrow">
+          <div class="ac">
+            <input id="fatBusca" class="ac-inp" autocomplete="off" placeholder="🔎 buscar filial (UF, razão social)…" />
+            <div class="ac-lista" id="fatLista" hidden></div>
+          </div>
+          <button class="btn ghost sm" id="btnAddFat">➕ Adicionar</button>
+        </div>
+        <div class="chips" id="fatList"></div>
+
+        <label style="margin-top:12px">Locais de entrega (POP)</label>
+        <div class="addrow">
+          <div class="ac">
+            <input id="entBusca" class="ac-inp" autocomplete="off" placeholder="🔎 buscar POP (nome, sigla, município)…" />
+            <div class="ac-lista" id="entLista" hidden></div>
+          </div>
+          <button class="btn ghost sm" id="btnAddEnt">➕ Adicionar</button>
+        </div>
+        <div class="chips" id="entList"></div>
+      </section>
+
+      <section class="card" id="secItens">
+        <div class="cardhead"><h2>Itens</h2>
+          <div class="cardhead-acoes">
+            <label class="liga" title="Ligado: o app preenche o unitário c/ imposto e o total (qtd × unitário). Desligado: nenhum campo é calculado — você digita todos os valores como estão na proposta.">
+              <input type="checkbox" id="ckCalcular" checked><span>🧮 Calcular</span>
+            </label>
+            <label class="liga" title="Lançar IPI, ICMS, ISS… sobre os produtos — o preço com impostos e o total são calculados a partir daí">
+              <input type="checkbox" id="ckImpostos"><span>🧾 Impostos</span>
+            </label>
+            <button class="btn ghost sm" id="btnAddItem">➕ Item</button>
+          </div>
+        </div>
+        <div class="imp-itens" id="impItens" hidden></div>
+        <table class="items"><thead><tr>
+          <th>#</th><th title="Código do produto · Part Number (PN) · Referência · SKU">Código / PN</th><th>Descrição</th><th>Qtd</th><th>Unit. s/i</th><th>Unit. c/i</th><th>Total</th><th></th>
+        </tr></thead><tbody id="itensBody"></tbody></table>
+        <div class="gp-itens" id="gpItens" hidden></div>
+      </section>
+
+      <section class="card" id="secAssinaturas">
+        <div class="cardhead"><h2>Assinaturas <span class="muted">(além das duas de sempre)</span></h2>
+          <div class="cardhead-acoes">
+            <div class="rub-wrap">
+              <label class="liga" title="Acrescenta uma linha discreta no rodapé, à esquerda, para a Eletronet rubricar a folha. Só a rubrica — as assinaturas continuam onde estão.">
+                <input type="checkbox" id="ckRubricas"><span>✍ Rubricas no rodapé</span>
+              </label>
+              <!-- O MODO mora aqui, num interruptor escondido, e não numa
+                   variável do JS: assim ele entra de graça na foto do rascunho
+                   (_MARCAS_AF guarda `checked`) e volta junto com a AF. -->
+              <input type="checkbox" id="ckRubTodas" hidden>
+              <!-- mostra o modo escolhido e reabre a escolha: sem isto, depois
+                   de fechar o balão não haveria como saber (nem trocar) onde a
+                   rubrica vai sair. -->
+              <button class="rub-modo" id="btnRubModo" type="button" hidden
+                      title="Trocar onde a rubrica aparece">última folha</button>
+              <div class="rub-pop" id="rubPop" role="dialog" aria-label="Onde a rubrica aparece" hidden>
+                <p class="rub-pop-t">Rubricar em que folha?</p>
+                <button class="rub-op" type="button" data-todas="0">
+                  <b>Só na última</b><i>junto das assinaturas</i>
+                </button>
+                <button class="rub-op" type="button" data-todas="1">
+                  <b>Em todas as folhas</b><i>uma linha no pé de cada página</i>
+                </button>
+              </div>
+            </div>
+            <button class="btn ghost sm" id="btnAddAssinante" type="button">➕ Assinante</button>
+          </div>
+        </div>
+        <div class="pessoas" id="assinantesList"></div>
+      </section>
+
+      <section class="card">
+        <div class="cardhead"><h2>Observações <span class="muted">(opcional — para o que sai do escopo padrão)</span></h2><button class="btn ghost sm" id="btnAddObs">➕ Observação</button></div>
+        <div id="obsList" class="obs-rows"></div>
+        <div class="muted obs-vazio" id="obsVazio" style="font-size:12px">Nenhuma observação. Clique em <b>➕ Observação</b> para adicionar notas que fogem do padrão.</div>
+      </section>
+
+    </div>
+
+    <!-- A régua lateral mantém a prévia acessível mesmo quando ela é recolhida
+         para dar largura total ao formulário em notebooks. -->
+    <button class="preview-rail" type="button" data-preview-toggle aria-pressed="true"
+            title="Recolher prévia">
+      <span class="preview-rail-icon">◫</span><span class="preview-rail-text">Prévia</span>
+    </button>
+
+    <!-- ======================= PRÉVIA ======================= -->
+    <div class="preview-col">
+      <div class="preview-head">Prévia da AF/AS <span class="muted">(atualiza ao digitar)</span>
+        <span class="modelo-tag" id="tagModeloAF"></span>
+      </div>
+      <iframe id="preview" title="Prévia da AF"></iframe>
+    </div>
+  </div>
+
+  <!-- ============================ ABA: CADASTROS ============================ -->
+  <div class="cadastros" id="viewCadastros" hidden>
+    <div class="cad-hero">
+      <div class="cad-hero-txt">
+        <span class="hero-eyebrow">BASE OPERACIONAL</span>
+        <h1>Cadastros</h1>
+        <p>O que você cadastra aqui fica salvo na sua máquina e passa a aparecer nas listas da aba
+           <b>Gerar AF/AS</b>. O modelo oficial (.xlsm) nunca é alterado.</p>
+      </div>
+      <div class="cad-stats">
+        <div class="stat"><b id="stForn">—</b><span>fornecedores</span></div>
+        <div class="stat"><b id="stFat">—</b><span>filiais</span></div>
+        <div class="stat"><b id="stPop">—</b><span>locais de entrega</span></div>
+      </div>
+    </div>
+    <!-- Onde os cadastros ficam salvos não aparece mais na tela: com o
+         arquivo numa pasta de rede, a linha só servia para estampar o caminho
+         do servidor na aba Cadastros. O mecanismo continua no código
+         (core/dados_eletronet.usar_dados_em e a variável GERADORAF_DADOS), e o
+         caminho em uso segue registrado no geradoraf.log. -->
+
+    <!-- ---- cadastro unitário: um tipo por vez, em largura cheia ---- -->
+    <section class="card cad-novo">
+      <div class="segmented" id="cadSeg" role="tablist">
+        <button class="seg active" type="button" data-alvo="fornecedor" role="tab">🏭 <span>Fornecedor</span></button>
+        <button class="seg" type="button" data-alvo="faturamento" role="tab">🏢 <span>Faturamento</span></button>
+        <button class="seg" type="button" data-alvo="pop" role="tab">📡 <span>Local de entrega</span></button>
+      </div>
+
+      <!-- ......................... FORNECEDOR ......................... -->
+      <div class="cad-painel" id="painel_fornecedor">
+        <div class="fgrid">
+          <div class="f c4"><label>Apelido <span class="muted">— como você o chama</span></label><input id="nf_apelido" placeholder="DATACOM" /></div>
+          <div class="f c8"><label>Empresa (razão social) <b>*</b></label><input id="nf_empresa" placeholder="DATACOM S.A." /></div>
+          <div class="f c4"><label>CNPJ</label><input id="nf_cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" /></div>
+          <div class="f c4"><label>Inscrição Estadual</label><input id="nf_ie" /></div>
+          <div class="f c4"><label>Garantia padrão</label><input id="nf_garantia" placeholder="12 meses" /></div>
+          <div class="f c9"><label>Endereço</label><input id="nf_endereco" placeholder="Rua, número, bairro, cidade - UF" /></div>
+          <div class="f c3"><label>CEP</label><input id="nf_cep" inputmode="numeric" placeholder="00000-000" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn ghost" type="button" data-limpar="fornecedor">✕ Limpar campos</button>
+          <button class="btn primary" id="btnSalvarForn">💾 Salvar fornecedor</button>
+        </div>
+      </div>
+
+      <!-- ........................ FATURAMENTO ......................... -->
+      <div class="cad-painel" id="painel_faturamento" hidden>
+        <div class="fgrid">
+          <div class="f c9"><label>Razão social <b>*</b></label><input id="nl_razao" placeholder="Eletronet S.A." /></div>
+          <div class="f c3"><label>UF</label><input id="nl_uf" list="dlUF" maxlength="2" class="up" placeholder="SP" /></div>
+          <div class="f c4"><label>CNPJ</label><input id="nl_cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" /></div>
+          <div class="f c4"><label>CNPJ 2 <span class="muted">(quando há dois)</span></label><input id="nl_cnpj2" inputmode="numeric" /></div>
+          <div class="f c4"><label>CEP</label><input id="nl_cep" inputmode="numeric" placeholder="00000-000" /></div>
+          <div class="f c12"><label>Endereço</label><input id="nl_endereco" placeholder="Rua, número, bairro, cidade - UF" /></div>
+          <div class="f c6"><label>Inscrição Estadual</label><input id="nl_ie" /></div>
+          <div class="f c6"><label>Inscrição Municipal</label><input id="nl_im" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn ghost" type="button" data-limpar="faturamento">✕ Limpar campos</button>
+          <button class="btn primary" id="btnSalvarFat">💾 Salvar faturamento</button>
+        </div>
+      </div>
+
+      <!-- ............................ POP ............................. -->
+      <div class="cad-painel" id="painel_pop" hidden>
+        <div class="fgrid">
+          <div class="f c5"><label>Nome da estação <b>*</b></label><input id="np_nome" placeholder="Tucuruí" /></div>
+          <div class="f c3"><label>Sigla do POP</label><input id="np_sigla" class="up" placeholder="TUU-TUU" /></div>
+          <div class="f c4"><label>Cedente <span class="muted">(dono do site)</span></label><input id="np_cedente" placeholder="Eletrobras / CHESF / …" /></div>
+          <div class="f c12"><label>Endereço</label><input id="np_endereco" placeholder="Rodovia PA-263, Km 13" /></div>
+          <div class="f c7"><label>Município</label><input id="np_municipio" placeholder="Tucuruí" /></div>
+          <div class="f c2"><label>UF</label><input id="np_uf" list="dlUF" maxlength="2" class="up" placeholder="PA" /></div>
+          <div class="f c3"><label>CEP <span class="muted">(entra no endereço)</span></label><input id="np_cep_aux" inputmode="numeric" placeholder="00000-000" /></div>
+          <div class="f c6"><label>Link Google Maps
+              <button type="button" class="lnkmini" id="btnCoordsDoMaps" title="Ler a latitude e a longitude de dentro do link">📍 extrair coordenadas</button></label>
+            <input id="np_maps" placeholder="https://maps.app.goo.gl/…" /></div>
+          <div class="f c3"><label>Latitude</label><input id="np_lat" placeholder="3°49'25.91&quot;S" /></div>
+          <div class="f c3"><label>Longitude</label><input id="np_lon" placeholder="49°39'8.91&quot;W" /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn ghost" type="button" data-limpar="pop">✕ Limpar campos</button>
+          <button class="btn primary" id="btnSalvarPop">💾 Salvar POP</button>
+        </div>
+      </div>
+
+      <div class="cad-status" id="cadStatus"></div>
+    </section>
+
+    <!-- ---- apoio: importação em massa e padrões ---- -->
+    <div class="cad-apoio">
+      <section class="card cad-massa">
+        <h2>📊 Importar em massa</h2>
+        <p class="cad-intro">Baixe o modelo, preencha as abas <b>Fornecedores</b>, <b>Faturamento</b> e/ou
+           <b>POPs</b> — uma linha por cadastro — e importe tudo de uma vez.</p>
+        <div class="cad-massa-btns">
+          <button class="btn info" id="btnModeloCad">📥 Baixar modelo</button>
+          <button class="btn primary" id="btnImportCad">📤 Importar planilha</button>
+          <input type="file" id="fileCad" accept=".xlsx,.xlsm" hidden />
+        </div>
+        <div class="cad-status" id="cadMassaStatus"></div>
+      </section>
+
+      <section class="card cad-padroes">
+        <div class="cardhead">
+          <h2>⚙️ Padrões <span class="muted">— em branco usa a planilha oficial</span></h2>
+          <button class="btn primary sm" id="btnSalvarPadroes">💾 Salvar</button>
+        </div>
+        <div class="trocas">
+          <div class="troca"><span>Gerente</span><input id="padGerente" list="dlPessoas" placeholder="—" /></div>
+          <div class="troca"><span>Gerente Geral</span><input id="padGerenteGeral" list="dlPessoas" placeholder="—" /></div>
+          <div class="troca"><span>Diretor</span><input id="padDiretor" list="dlPessoas" placeholder="—" /></div>
+        </div>
+        <div class="agenda">
+          <div class="agenda-top">
+            <span>Agenda de assinaturas <span class="muted">— fica salva e vira sugestão nos campos de responsável</span></span>
+            <button class="btn ghost sm" id="btnAddPessoa" type="button">➕ Pessoa</button>
+          </div>
+          <div class="pessoas" id="pessoasLista"></div>
+        </div>
+        <div class="cad-status" id="padStatus"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============================ ABA: EXCLUIR ============================ -->
+  <div class="cadastros" id="viewExcluir" hidden>
+    <div class="ex-hero">
+      <div>
+        <span class="hero-eyebrow">MANUTENÇÃO DE CATÁLOGO</span>
+        <h1>Gerenciar registros</h1>
+        <p>Aqui você revisa fornecedores, filiais e POPs. <b>✎</b> corrige; <b>🗑</b> apaga registros seus; <b>🚫</b> apenas oculta um item oficial — sempre reversível.</p>
+      </div>
+      <span class="ex-hero-note">O modelo oficial nunca é alterado.</span>
+    </div>
+    <div class="cad-grid ex-grid">
+      <section class="card ex-card"><div class="cardhead"><h2>Fornecedores</h2><span class="list-count" id="countForn">—</span></div>
+        <input class="ex-busca" id="buscaForn" placeholder="🔎 filtrar…" />
+        <div class="cad-lista ex-scroll" id="listForn"></div>
+        <div class="ex-ocultos" id="ocForn"></div>
+      </section>
+      <section class="card ex-card"><div class="cardhead"><h2>Locais de faturamento</h2><span class="list-count" id="countFat">—</span></div>
+        <input class="ex-busca" id="buscaFat" placeholder="🔎 filtrar…" />
+        <div class="cad-lista ex-scroll" id="listFat"></div>
+        <div class="ex-ocultos" id="ocFat"></div>
+      </section>
+      <section class="card ex-card ex-card-pop"><div class="cardhead"><h2>Locais de entrega (POP)</h2><span class="list-count" id="countPop">—</span></div>
+        <input class="ex-busca" id="buscaPop" placeholder="🔎 filtrar…" />
+        <div class="cad-lista ex-scroll" id="listPop"></div>
+        <div class="ex-ocultos" id="ocPop"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============================ ABA: CPM / CPS ============================ -->
+  <div class="split" id="viewCPM" hidden>
+    <div class="document-bar">
+      <div class="form-context-title"><span>COLETA DE PREÇOS</span><strong>CPM / CPS</strong></div>
+      <div class="document-actions">
+        <label class="pdfsel">PDF
+          <select id="cpmEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet."><option value="html">Visual (HTML)</option><option value="excel">Oficial</option></select>
+        </label>
+        <button class="btn ghost sm" id="btnLimparCPM" type="button" title="Limpar os campos do CPM/CPS e começar do zero">✕ <span class="rot">Limpar</span></button>
+        <button class="btn soft sm" id="btnCpmExcel">📊 Excel</button>
+        <button class="btn primary sm" id="btnCpmPdf">📋 Gerar CPM</button>
+      </div>
+    </div>
+    <div class="form-col">
+      <section class="card">
+        <div class="cardhead"><h2>🔗 Vínculo com a AF/AS <span class="muted">(puxa as informações principais)</span></h2>
+          <button class="btn ghost sm" id="btnCpmAuto" title="Re-sincronizar textos/alçada com a AF">↻ Sincronizar</button>
+        </div>
+        <p class="cad-intro" style="margin:2px 0 10px">A CPM/CPS é uma <b>extensão da AF/AS</b>: fornecedor, valor, proposta, prazo e pagamento vêm direto dela (mude na aba <b>Gerar AF/AS</b>). Abaixo só os campos próprios da CPM/CPS.</p>
+        <div class="fgrid">
+          <div class="f c6"><label>CPM/CPS nº</label><input id="cpmId" readonly /></div>
+          <div class="f c6"><label>AF/AS associada</label><input id="cpmAf" readonly /></div>
+          <div class="f c12"><label>Fornecedor (da AF/AS)</label><input id="cpmFornLink" readonly /></div>
+          <div class="f c4"><label>Valor (da AF/AS)</label><input id="cpmValorLink" readonly /></div>
+          <div class="f c3"><label>Moeda (da AF/AS)</label><input id="cpmMoedaLink" readonly /></div>
+          <div class="f c5"><label>Proposta (da AF/AS)</label><input id="cpmPropLink" readonly /></div>
+          <div class="f c6"><label>Prazo de entrega (da AF/AS)</label><input id="cpmPrazoLink" readonly /></div>
+          <div class="f c6"><label>Forma de pagamento (da AF/AS)</label><input id="cpmPagtoLink" readonly /></div>
+          <div class="f c12"><label>Local de entrega (Eletronet)</label><input id="cpmLocalLink" readonly /></div>
+          <div class="f c12 proprio"><label>Projeto <span class="muted">(aparece na Identificação do CPM/CPS)</span></label><input id="cpmProjeto" placeholder="ex.: Expansão Rede Metro BMW" /></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Dados próprios da CPM/CPS</h2>
+        <div class="fgrid">
+          <div class="f c4"><label>Data da CPM/CPS</label><input id="cpmData" /></div>
+          <div class="f c4"><label>Data do relatório</label><input id="cpmDataRel" /></div>
+          <div class="f c4"><label>Fornecedor (nome fantasia)</label><input id="cpmFantasia" placeholder="DATACOM" /></div>
+          <div class="f c12"><label>Atendimento às especificações</label><textarea id="cpmAtendimento" rows="2"></textarea></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardhead"><h2>Cenário &amp; textos padronizados</h2>
+          <button class="btn ghost sm" id="btnCpmTextos" title="Preencher finalidade/justificativa/consequências no padrão">↻ Gerar textos</button>
+        </div>
+        <label>Cenário</label>
+        <select id="cpmCenario">
+          <option value="sem">Sem cliente (estoque / reposição)</option>
+          <option value="com">Com cliente</option>
+          <option value="varios">Vários clientes</option>
+        </select>
+        <div id="cpmCapexSec" style="margin-top:10px" hidden>
+          <div class="cli-cards-head">
+            <label style="margin:0">Informações por cliente <span class="muted">— cada cliente tem seus próprios POP, banda, serviço, CCS, OS e PSC</span></label>
+            <button type="button" class="btn ghost sm" id="btnAddCliente" title="Adicionar outro cliente (cenário 'Vários clientes')">+ cliente</button>
+          </div>
+          <div id="cpmClientes"></div>
+        </div>
+        <div class="fgrid" style="margin-top:10px">
+          <div class="f c12"><label>Finalidade</label><textarea id="cpmFinalidade" rows="3"></textarea></div>
+          <div class="f c12"><label>Justificativa da aquisição</label><textarea id="cpmJustificativa" rows="2"></textarea></div>
+          <div class="f c12"><label>Consequências da não realização</label><textarea id="cpmConsequencias" rows="2"></textarea></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Orçamento, concorrência &amp; moeda</h2>
+        <div class="fgrid">
+          <div class="f c6" id="cpmVerbaLinha"><label class="rotsel" title="CAPEX é investimento (bem que vira patrimônio); OPEX é custeio (despesa do dia a dia). A escolha muda o nome da verba no documento."><select id="cpmTipoVerba"><option value="CAPEX">CAPEX</option><option value="OPEX">OPEX</option></select><span class="muted">disponível, R$</span></label><input id="cpmCapex" placeholder="0,00" /></div>
+          <div class="f c6" id="cpmCotacaoLinha"><label>Cotação <span class="muted">— 1 <span id="cpmMoedaSimb">US$</span> = R$ (taxa)</span></label><input id="cpmCotacao" placeholder="5,19" /></div>
+          <div class="f c12" id="cpmConvLinha" hidden><label>Conversão para Reais</label><input id="cpmConv" readonly /></div>
+        </div>
+        <label style="margin-top:10px">Concorrência — fornecedores que participaram <span class="muted">(Fornecedor → Prazo → Valor)</span></label>
+        <div class="cpm-conc" style="margin-top:4px">
+          <div class="cpm-conc-head"><span>Fornecedor</span><span>Prazo</span><span>Valor</span></div>
+          <div class="cpm-conc-row"><input id="cpmForn1" placeholder="Fornecedor 1 (recomendado)"><input id="cpmPrazo1" placeholder="prazo"><input id="cpmVal1" placeholder="valor"></div>
+          <div class="cpm-conc-row"><input id="cpmForn2" placeholder="Fornecedor 2"><input id="cpmPrazo2" placeholder="prazo"><input id="cpmVal2" placeholder="valor"></div>
+          <div class="cpm-conc-row"><input id="cpmForn3" placeholder="Fornecedor 3"><input id="cpmPrazo3" placeholder="prazo"><input id="cpmVal3" placeholder="valor"></div>
+          <div class="cpm-conc-row"><input id="cpmForn4" placeholder="Fornecedor 4"><input id="cpmPrazo4" placeholder="prazo"><input id="cpmVal4" placeholder="valor"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Alçada &amp; responsáveis</h2>
+        <label>Responsáveis (modalidade + faixa) <span class="muted">— escolha a combinação (ex.: Gerente + Diretor)</span></label>
+        <select id="cpmAlcadaSel"></select>
+        <p class="ass-dica muted">Marque <b>quem assina</b> o documento. Desmarcado, o responsável
+          continua registrado na alçada, mas <b>não recebe linha de assinatura</b>.</p>
+        <div class="grid2 alcada-grid" style="margin-top:10px">
+          <div class="f"><label>Gerente<label class="ass"><input type="checkbox" id="ckGerente" data-papel="gerente" checked><span>assina</span></label></label><input id="cpmGerente" list="dlPessoas" /></div>
+          <div class="f"><label>Gerente Geral<label class="ass"><input type="checkbox" id="ckGerenteGeral" data-papel="gerente_geral" checked><span>assina</span></label></label><input id="cpmGerenteGeral" list="dlPessoas" placeholder="(vago)" /></div>
+          <div class="f"><label>Diretor<label class="ass"><input type="checkbox" id="ckDiretor" data-papel="diretor" checked><span>assina</span></label></label><input id="cpmDiretor" list="dlPessoas" /></div>
+          <div class="f"><label>CFO<label class="ass"><input type="checkbox" id="ckCfo" data-papel="cfo" checked><span>assina</span></label></label><input id="cpmCfo" list="dlPessoas" /></div>
+          <div class="f"><label>Presidência<label class="ass"><input type="checkbox" id="ckPresidencia" data-papel="presidencia" checked><span>assina</span></label></label><input id="cpmPresidencia" list="dlPessoas" /></div>
+          <div class="f"><label title="Aplicável às faixas acima de R$ 1M/10M">Conselho de Administração<label class="ass"><input type="checkbox" id="ckConselho" data-papel="conselho" checked><span>assina</span></label></label><input id="cpmConselho" list="dlPessoas" placeholder="Conselho de Administração Eletronet" /></div>
+        </div>
+        <div class="agenda-top" style="margin-top:12px">
+          <span>Assinantes adicionais <span class="muted">— além dos cargos acima</span></span>
+          <button class="btn ghost sm" id="btnAddExtra" type="button">➕ Assinante</button>
+        </div>
+        <div class="pessoas" id="extrasList"></div>
+      </section>
+
+      <div id="cpmInfo" class="cad-status"></div>
+    </div>
+
+    <button class="preview-rail" type="button" data-preview-toggle aria-pressed="true"
+            title="Recolher prévia">
+      <span class="preview-rail-icon">◫</span><span class="preview-rail-text">Prévia</span>
+    </button>
+
+    <div class="preview-col">
+      <div class="preview-head">Prévia do CPM/CPS <span class="muted">(atualiza ao editar)</span>
+        <span class="modelo-tag" id="tagModeloCPM"></span>
+      </div>
+      <iframe id="cpmPreview" title="Prévia do CPM"></iframe>
+    </div>
+  </div>
+
+  <div class="status" id="status">Carregando catálogo…</div>
+
+  <script src="app.js"></script>
+  <datalist id="dlPessoas"></datalist>
+  <datalist id="dlUF">
+    <option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option>
+    <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+    <option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option>
+    <option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+    <option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option>
+    <option>SP</option><option>TO</option>
+  </datalist>
+</body>
+</html>

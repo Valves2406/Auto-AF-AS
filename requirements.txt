@@ -1,0 +1,31 @@
+# ============================================================
+# Gerador de AF (Eletronet) — dependências  •  Python 3.12+
+# Instale tudo com:  pip install -r requirements.txt
+# A interface é HTML aberta no Microsoft Edge (--app); não há mais Tkinter.
+# ============================================================
+
+# --- Núcleo (obrigatórias) ---
+openpyxl>=3.1           # preenche o template oficial (.xlsm) e gera o Excel
+pdfplumber>=0.11        # leitura do texto da proposta (PDF)
+
+# --- PDF de reserva (opcional) ---
+# O PDF oficial é exportado pelo próprio Excel (COM, fiel ao modelo) e o
+# "estilo HTML" é impresso pelo Edge headless. Reserva em reportlab:
+reportlab>=4.0
+
+# --- OCR / leitura de PDFs difíceis (opcional, recomendado) ---
+pypdfium2>=4.30         # renderiza páginas p/ OCR e mescla AF + proposta
+pytesseract>=0.3.10     # OCR de reserva (requer o Tesseract instalado:
+#                         https://github.com/UB-Mannheim/tesseract/wiki — por+eng)
+
+# --- Extração de alta precisão (opcional) ---
+# Reconstrói texto de PDFs com fontes quebradas e estrutura tabelas.
+# Desligar com a variável de ambiente GERADORAF_DOCLING=0.
+docling>=2.0
+
+# ------------------------------------------------------------
+# Observações:
+#  • A exportação do PDF "oficial" usa o Microsoft Excel já instalado (COM via
+#    PowerShell) e o PDF "HTML/Premium" usa o Microsoft Edge — sem pacote extra.
+#  • Cadastros do usuário ficam em dados_usuario.json (não versionar dados reais).
+# ------------------------------------------------------------

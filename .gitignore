@@ -1,0 +1,43 @@
+# O que NÃO acompanha o projeto.
+#
+# Duas categorias bem diferentes moram aqui: o que é GERADO (e por isso não
+# precisa de versão) e o que é DADO DA EMPRESA (e por isso não pode sair).
+
+# ---- gerado ao rodar -------------------------------------------------------
+__pycache__/
+*.py[cod]
+geradoraf.log
+geradoraf.log.*
+saída gerador/
+saida gerador/
+
+# ---- gerado ao empacotar ---------------------------------------------------
+build/
+dist/
+
+# ---- ambiente local --------------------------------------------------------
+# venv dentro do OneDrive desidrata e quebra — o .bat usa o Python do sistema.
+.venv/
+venv/
+.env
+
+# ---- lixo do sistema -------------------------------------------------------
+Thumbs.db
+desktop.ini
+~$*
+
+# ---- DADO DA EMPRESA: não sai daqui ----------------------------------------
+# Os modelos não são só o formulário em branco: o CATÁLOGO DE FÁBRICA mora
+# dentro deles. Uma planilha traz 18 fornecedores com razão social, endereço,
+# CNPJ e inscrição estadual; outra, as 20 filiais da Eletronet com CNPJ e
+# endereço; e 182 POPs — a lista de sites da rede.
+#
+# O repositório é público. Publicar os modelos publicaria tudo isso, e no
+# GitHub não há como despublicar de verdade: indexa, permite fork e guarda em
+# cache. Por isso eles ficam de fora, mesmo sendo necessários para rodar.
+#
+# Quem clonar precisa colocar os três em `assets/` por conta própria — está
+# explicado no README, em "Modelos oficiais".
+assets/modelo_af.xlsm
+assets/modelo_as.xlsm
+assets/modelo_cpm.xlsx
