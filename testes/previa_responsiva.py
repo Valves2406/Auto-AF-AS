@@ -37,6 +37,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 from core.html_render import montar_cpm_html
@@ -116,9 +117,9 @@ _html = engine.montar_preview(dict(FORM, pdf_estilo="html"))
 _excel = engine.montar_preview(dict(FORM, pdf_estilo="excel"))
 ok("a prévia é a mesma nos dois estilos (é sempre o Visual)", _html == _excel)
 
-_idx = io.open(os.path.join(PROJ, "web", "index.html"), encoding="utf-8").read()
-_js = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
-_css = io.open(os.path.join(PROJ, "web", "app.css"), encoding="utf-8").read()
+_idx = io.open(os.path.join(PROJ, "frontend", "index.html"), encoding="utf-8").read()
+_js = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
+_css = io.open(os.path.join(PROJ, "frontend", "app.css"), encoding="utf-8").read()
 ok("existe a etiqueta na barra da AF/AS", 'id="tagModeloAF"' in _idx)
 ok("e na barra da CPM/CPS", 'id="tagModeloCPM"' in _idx)
 ok("a função que a preenche existe", "function marcarModelo()" in _js)

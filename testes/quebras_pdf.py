@@ -18,6 +18,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 from core.html_render import montar_cpm_html
@@ -27,7 +28,7 @@ falhas = []
 
 def fonte_render():
     """O código-fonte do renderizador, para checar o que só existe na marcação."""
-    return io.open(os.path.join(PROJ, "core", "html_render.py"), encoding="utf-8").read()
+    return io.open(os.path.join(PROJ, "backend", "core", "html_render.py"), encoding="utf-8").read()
 
 
 def estilo(doc):

@@ -18,8 +18,8 @@ from PyInstaller.utils.hooks import collect_data_files
 
 # dados que precisam viajar junto (origem, destino dentro do bundle)
 datas = [
-    ("assets", "assets"),
-    ("web", "web"),
+    ("../backend/modelos", "backend/modelos"),
+    ("../frontend", "frontend"),
 ]
 # pdfplumber/pdfminer levam tabelas .txt de codificação que não são detectadas
 datas += collect_data_files("pdfminer")
@@ -75,5 +75,5 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,          # sem janela preta: quem aparece é o Edge
     disable_windowed_traceback=False,
-    icon="assets/app.ico" if __import__("os").path.exists("assets/app.ico") else None,
+    icon="../frontend/imagens/app.ico" if __import__("os").path.exists("../frontend/imagens/app.ico") else None,
 )

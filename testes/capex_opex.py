@@ -15,6 +15,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 from core.html_render import montar_cpm_html
@@ -74,9 +75,9 @@ ok("mas o saldo aparece nos dois", saldo(vazio_c) == saldo(vazio_o) == "R$ -63.3
    "%r vs %r" % (saldo(vazio_c), saldo(vazio_o)))
 
 print("\n== a cortina existe na tela e volta preenchida ==")
-htm = io.open(os.path.join(PROJ, "web", "index.html"), encoding="utf-8").read()
-js = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
-css = io.open(os.path.join(PROJ, "web", "app.css"), encoding="utf-8").read()
+htm = io.open(os.path.join(PROJ, "frontend", "index.html"), encoding="utf-8").read()
+js = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
+css = io.open(os.path.join(PROJ, "frontend", "app.css"), encoding="utf-8").read()
 ok("a cortina esta na tela", 'id="cpmTipoVerba"' in htm)
 ok("oferece os dois e so os dois",
    htm.count('<option value="CAPEX">') == 1 and htm.count('<option value="OPEX">') == 1)
@@ -122,7 +123,7 @@ ok("e volta a meia linha em moeda estrangeira",
    '$("cpmVerbaLinha").classList.toggle("c6", !isReal);' in js)
 
 print("\n== o Excel oficial nao muda ==")
-ger = io.open(os.path.join(PROJ, "core", "gerador.py"), encoding="utf-8").read()
+ger = io.open(os.path.join(PROJ, "backend", "core", "gerador.py"), encoding="utf-8").read()
 ok("as celulas do Excel continuam as mesmas", '"I21": capex' in ger and '"I27": capex - valor' in ger,
    "o pedido foi trocar o nome no documento, nao mexer no modelo oficial")
 

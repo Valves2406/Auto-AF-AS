@@ -38,6 +38,7 @@ for _f in (TMP, TMP + ".bak"):
         os.remove(_f)
 io.open(TMP, "w", encoding="utf-8").write("{}")
 os.environ["GERADORAF_DADOS"] = TMP           # nunca encosta no cadastro real
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core import aprendizado as ap
 

@@ -36,6 +36,7 @@ import tempfile
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core import gerador
 from core.gerador import _edge_exe, gerar_af_pdf_html
@@ -95,14 +96,14 @@ finally:
         os.rename(guardado, PERFIL)
 
 print("\n== desistindo, o motivo chega junto ==")
-fonte = io.open(os.path.join(PROJ, "core", "gerador.py"), encoding="utf-8").read()
+fonte = io.open(os.path.join(PROJ, "backend", "core", "gerador.py"), encoding="utf-8").read()
 ok("a exceção carrega o motivo, não uma frase genérica",
    'raise RuntimeError("; ".join(_motivo)' in fonte)
 ok("o subprocesso amarra as TRÊS entradas (exige do .exe sem console)",
    "stdin=subprocess.DEVNULL" in fonte)
 ok("há duas tentativas, a 2ª com perfil descartável",
    "for tentativa in (1, 2)" in fonte and "mkdtemp" in fonte)
-motor = io.open(os.path.join(PROJ, "engine.py"), encoding="utf-8").read()
+motor = io.open(os.path.join(PROJ, "backend", "engine.py"), encoding="utf-8").read()
 ok("e o aviso da tela mostra esse motivo",
    motor.count('"O PDF Visual falhou (%s) — foi gerado o PDF oficial "') == 2,
    str(motor.count('"O PDF Visual falhou (%s) — foi gerado o PDF oficial "')))

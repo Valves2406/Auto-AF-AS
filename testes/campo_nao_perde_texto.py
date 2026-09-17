@@ -45,7 +45,7 @@ def ok(nome, cond, extra=""):
         falhas.append(nome)
 
 
-JS = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
+JS = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
 
 print("== a regra existe no código da tela ==")
 ok("há uma função que decide se a frase é só a duração", "function soDuracao(" in JS)

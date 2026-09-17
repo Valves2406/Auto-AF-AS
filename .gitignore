@@ -38,6 +38,6 @@ desktop.ini
 #
 # Quem clonar precisa colocar os três em `assets/` por conta própria — está
 # explicado no README, em "Modelos oficiais".
-assets/modelo_af.xlsm
-assets/modelo_as.xlsm
-assets/modelo_cpm.xlsx
+backend/modelos/modelo_af.xlsm
+backend/modelos/modelo_as.xlsm
+backend/modelos/modelo_cpm.xlsx

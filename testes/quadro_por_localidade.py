@@ -38,6 +38,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core.extrator import ExtratorProposta
 from core.modelos import brl_para_float
@@ -233,7 +234,7 @@ print("\n== e o caminho INTEIRO: proposta -> tela -> documento ==")
 # mas na tela o campo só era LIDO (ao gerar e ao salvar rascunho) — nada nunca
 # escrevia nele. O texto era produzido e descartado no caminho, e o quadro de
 # observações ficava vazio.
-_js = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
+_js = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
 ok("existe a função que põe as observações na tela", "function porObservacoes(" in _js)
 ok("chamada ao LER uma proposta", "porObservacoes(p.observacoes)" in _js)
 ok("e ao IMPORTAR uma AF pronta", "porObservacoes(d.observacoes)" in _js)
@@ -241,6 +242,7 @@ ok("não repete o que a pessoa já escreveu", "jaTem.has(txt)" in _js)
 
 # e do formulário para o documento
 import html as _html
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 _OBS = ["Fornecimento de 01 (um) Conjunto por Localidade composto por:",

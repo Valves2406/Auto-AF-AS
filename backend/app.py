@@ -31,7 +31,7 @@ LOG = get_logger("app")
 
 from core.caminhos import recurso, dado
 
-WEB = recurso("web")
+WEB = recurso("frontend")
 # Saída organizada: uma pasta "saída gerador" com 8 subpastas por tipo × formato.
 SAIDA_BASE = dado("saída gerador")     # documentos do usuário: junto do .exe
 _SUBPASTAS = ["AF-excel", "AF-pdf", "AS-excel", "AS-pdf",
@@ -94,7 +94,7 @@ def preparar():
         from openpyxl import load_workbook   # noqa: F401
         # toca os templates p/ o OneDrive hidratar e o SO cachear o arquivo
         for nome in ("modelo_af.xlsm", "modelo_as.xlsm", "modelo_cpm.xlsx"):
-            p = recurso("assets", nome)
+            p = recurso("frontend", "imagens", nome)
             try:
                 if os.path.exists(p):
                     with open(p, "rb") as f:
@@ -250,15 +250,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/logo.png":
             # versão da UI: fundo transparente + marca na cor da marca (o JPEG
             # original segue sendo o usado nos DOCUMENTOS). Cai no JPEG se faltar.
-            p = os.path.join(os.path.dirname(LOGO), "eletronet_logo_ui.png")
+            p = recurso("frontend", "imagens", "eletronet_logo_ui.png")
             if os.path.exists(p):
                 with open(p, "rb") as f:
                     return self._send(200, f.read(), "image/png")
             with open(LOGO, "rb") as f:
                 return self._send(200, f.read(), "image/jpeg")
         if path == "/app.ico":
-            # o ícone da aba e da barra de tarefas é o mesmo do executável
-            p = os.path.join(os.path.dirname(LOGO), "app.ico")
+            # o ícone da aba e da barra de tarefas é o mesmo do executável.
+            # Resolve por recurso(), não por dirname(LOGO): LOGO é o JPEG dos
+            # DOCUMENTOS e mora em backend/modelos/, enquanto a marca da tela
+            # está em frontend/imagens/. Amarrar um ao outro era o que deixava
+            # o ícone e a faixa quebrados.
+            p = recurso("frontend", "imagens", "app.ico")
             if os.path.exists(p):
                 with open(p, "rb") as f:
                     return self._send(200, f.read(), "image/x-icon")
@@ -268,7 +272,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # sozinho na aba do navegador (aos 16px o texto vira sujeira).
             arq = {"/marca.png": "autoafas_logo.png",
                    "/faixa.png": "autoafas_faixa.png"}.get(path, "autoafas_simbolo.png")
-            p = os.path.join(os.path.dirname(LOGO), arq)
+            p = recurso("frontend", "imagens", arq)
             if os.path.exists(p):
                 with open(p, "rb") as f:
                     return self._send(200, f.read(), "image/png")

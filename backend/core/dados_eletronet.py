@@ -1,6 +1,6 @@
 """
 dados_eletronet.py — listas de apoio lidas do template oficial empacotado
-(`assets/modelo_af.xlsm`): catálogo de fornecedores, filiais de faturamento e
+(`backend/modelos/modelo_af.xlsm`): catálogo de fornecedores, filiais de faturamento e
 POPs de entrega. Para atualizar, basta trocar o .xlsm.
 """
 
@@ -22,7 +22,7 @@ LOG = get_logger("dados")
 
 from .caminhos import recurso, dado          # separa empacotado × gravável (.exe)
 
-ASSETS = recurso("assets")
+ASSETS = recurso("backend", "modelos")
 MODELO_XLSM = os.path.join(ASSETS, "modelo_af.xlsm")
 MODELO_AS_XLSM = os.path.join(ASSETS, "modelo_as.xlsm")
 MODELO_CPM = os.path.join(ASSETS, "modelo_cpm.xlsx")   # Coleta de Preços (CPM/CPS)

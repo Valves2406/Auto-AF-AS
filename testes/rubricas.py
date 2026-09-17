@@ -40,6 +40,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 
@@ -141,8 +142,8 @@ ok("a tabela de ITENS continua fluindo", ".bloco.tabela{break-inside:avoid}" not
    "marcada como indivisivel, ela deixava 52% da folha em branco")
 
 print("\n== o marcador sobrevive ao rascunho e ao desfazer ==")
-js = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
-htm = io.open(os.path.join(PROJ, "web", "index.html"), encoding="utf-8").read()
+js = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
+htm = io.open(os.path.join(PROJ, "frontend", "index.html"), encoding="utf-8").read()
 ok("o campo existe na tela", 'id="ckRubricas"' in htm)
 ok("vai no formulario enviado ao motor", 'rubricas: !!($("ckRubricas")' in js)
 ok("marcadores entram na foto (checked, nao value)",
@@ -165,7 +166,7 @@ ok("o modo mora num interruptor, nao numa variavel", 'id="ckRubTodas"' in htm,
 ok("e por isso entra na foto", '"ckRubTodas"' in js and "_MARCAS_AF" in js)
 ok("vai no formulario enviado ao motor", "rubricas_todas:" in js)
 ok("o motor repassa a escolha", '"rubricas_todas"' in open(
-    os.path.join(PROJ, "engine.py"), encoding="utf-8").read())
+    os.path.join(PROJ, "backend", "engine.py"), encoding="utf-8").read())
 # O balao fecha; a pastilha e o unico lugar onde o modo continua visivel.
 ok("a pastilha mostra o modo em vigor", 'id="btnRubModo"' in htm
    and "última folha" in js and "todas as folhas" in js)

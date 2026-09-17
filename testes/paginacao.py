@@ -40,6 +40,7 @@ import tempfile
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 
 import logging
@@ -206,7 +207,7 @@ for n_it, n_loc in ((1, 19), (16, 19)):
     avalia(montar_cpm_html(c.get("cpm") or c), "%2d itens/%2d locais" % (n_it, n_loc))
 
 print("\n== as regras estão no CSS dos DOIS documentos ==")
-fonte = io.open(os.path.join(PROJ, "core", "html_render.py"), encoding="utf-8").read()
+fonte = io.open(os.path.join(PROJ, "backend", "core", "html_render.py"), encoding="utf-8").read()
 ok("a assinatura e o bloco anterior formam uma peça só (AF)",
    '.fim{{break-inside:avoid}}' in fonte and '<div class="fim">' in fonte)
 # A regra vale para os DOIS documentos porque agora é UMA só, num bloco comum.

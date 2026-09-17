@@ -13,8 +13,8 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JS = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
-CSS = io.open(os.path.join(PROJ, "web", "app.css"), encoding="utf-8").read()
+JS = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
+CSS = io.open(os.path.join(PROJ, "frontend", "app.css"), encoding="utf-8").read()
 
 falhas = []
 
@@ -61,7 +61,7 @@ ok("guardar e adiado (nao grava a cada tecla)", "_tmrRascunho = setTimeout" in J
 ok("falha de storage nao derruba a tela", "catch (e) { /* cota cheia" in JS)
 ok("o alvo da barra existe no HTML",
    '#viewGerar .form-col' in JS and 'id="viewGerar"' in io.open(
-       os.path.join(PROJ, "web", "index.html"), encoding="utf-8").read())
+       os.path.join(PROJ, "frontend", "index.html"), encoding="utf-8").read())
 
 print("\n== atalhos ==")
 ok("existe a lista de atalhos", "const ATALHOS" in JS)

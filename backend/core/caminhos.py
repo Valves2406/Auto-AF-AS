@@ -4,7 +4,8 @@ caminhos.py — resolve onde ficam os arquivos, rodando como script OU como .exe
 Dentro de um executável PyInstaller há DOIS lugares diferentes, e confundi-los
 quebra o app:
 
-  • RECURSO — o que vem EMPACOTADO e é só leitura (assets/, web/). No .exe
+  • RECURSO — o que vem EMPACOTADO e é só leitura (frontend/,
+    backend/modelos/). No .exe
     "onefile" isso é extraído numa pasta TEMPORÁRIA (`sys._MEIPASS`) que o
     Windows apaga quando o programa fecha.
 
@@ -28,7 +29,11 @@ import sys
 # Empacotado? O PyInstaller marca com sys.frozen e expõe sys._MEIPASS.
 EMPACOTADO = getattr(sys, "frozen", False)
 
-_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# TRES niveis: este arquivo agora e backend/core/caminhos.py, e a raiz do
+# projeto esta tres pastas acima (core -> backend -> raiz). Com dois, a
+# "raiz" virava backend/ e nada de frontend/ era encontrado.
+_PROJETO = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
 # leitura: pasta temporária do bundle (onefile) ou a pasta do .exe (onedir)
 BASE_RECURSO = getattr(sys, "_MEIPASS", None) or (
     os.path.dirname(os.path.abspath(sys.executable)) if EMPACOTADO else _PROJETO)
@@ -40,7 +45,7 @@ BASE_DADOS = os.environ.get("GERADORAF_RAIZ") or (
 
 
 def recurso(*partes: str) -> str:
-    """Arquivo empacotado (só leitura): assets/, web/."""
+    """Arquivo empacotado (só leitura): frontend/, backend/modelos/."""
     return os.path.join(BASE_RECURSO, *partes)
 
 

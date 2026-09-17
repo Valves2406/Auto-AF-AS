@@ -10,24 +10,24 @@ local em `127.0.0.1` e abre a janela.
 
 ---
 
-## Modelos oficiais — não vêm neste repositório
+## Modelos oficiais — não vêm no repositório
 
-Antes de rodar, coloque três arquivos em `assets/`:
+Antes de rodar, coloque três arquivos em `backend/modelos/`:
 
 ```
-assets/modelo_af.xlsm
-assets/modelo_as.xlsm
-assets/modelo_cpm.xlsx
+backend/modelos/modelo_af.xlsm
+backend/modelos/modelo_as.xlsm
+backend/modelos/modelo_cpm.xlsx
 ```
 
 **Sem eles o app não sobe**, e não é só porque falta o formulário em branco: o
 catálogo de fábrica mora dentro dessas planilhas — 18 fornecedores com razão
 social, endereço, CNPJ e inscrição estadual; as 20 filiais da Eletronet; e 182
-POPs. É por isso que eles ficam de fora: este repositório é público, e esses
-são dados da empresa.
+POPs. É por isso que ficam de fora: o repositório é público, e isso é dado da
+empresa.
 
 Peça os três à Engenharia de Redes da Eletronet. O `.gitignore` já os bloqueia,
-então não há risco de subirem sem querer numa próxima alteração.
+então não sobem sem querer numa próxima alteração.
 
 ---
 
@@ -48,24 +48,41 @@ uma janela normal, porque não tem esse modo. `GERADORAF_NAVEGADOR=chrome` forç
 
 ## Onde fica cada coisa
 
+Separado por **quem executa**: o Python fica em `backend/`, o que o navegador
+carrega fica em `frontend/`. Mesma divisão do projeto Nexus.
+
 ```
-app.py              janela + servidor local (http.server da biblioteca padrão)
-engine.py           a API que o front chama: dados / extrair / preview / gerar
-core/
-  caminhos.py       o que é RECURSO (só leitura, vai no .exe) x o que é DADO do usuário
-  modelos.py        ItemAF, DadosProposta, moedas, valor por extenso em PT-BR
-  dados_eletronet   catálogo (fornecedores, filiais, POPs), cadastro do usuário, migrações
-  extrator.py       lê a proposta: PDF de texto, seções numeradas, tabelas, OCR
-  extrator_ciena.py o Excel do DDPTool da CIENA, que tem formato próprio
-  aprendizado.py    aprende com as SUAS correções onde cada campo fica na proposta
-  gerador.py        preenche o template oficial → Excel / PDF (+ proposta anexada)
-  html_render.py    AF e CPM em HTML: a prévia da tela E o PDF "Visual"
-  trava.py          trava entre processos p/ o cadastro compartilhado na rede
-  log.py            geradoraf.log, rotativo
-web/                index.html + app.css + app.js — o formulário e a prévia
-assets/             modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx, logo
-testes/             27 suítes — ver "Testes" abaixo
+backend/              tudo que roda em Python
+  app.py              janela + servidor local (http.server da biblioteca padrão)
+  engine.py           a API que o front chama: dados / extrair / preview / gerar
+  core/
+    caminhos.py       o que é RECURSO (só leitura, vai no .exe) x o que é DADO do usuário
+    modelos.py        ItemAF, DadosProposta, moedas, valor por extenso em PT-BR
+    dados_eletronet   catálogo (fornecedores, filiais, POPs), cadastro do usuário, migrações
+    extrator.py       lê a proposta: PDF de texto, seções numeradas, tabelas, OCR
+    extrator_ciena.py o Excel do DDPTool da CIENA, que tem formato próprio
+    aprendizado.py    aprende com as SUAS correções onde cada campo fica na proposta
+    gerador.py        preenche o template oficial → Excel / PDF (+ proposta anexada)
+    html_render.py    AF e CPM em HTML: a prévia da tela E o PDF "Visual"
+    trava.py          trava entre processos p/ o cadastro compartilhado na rede
+    log.py            geradoraf.log, rotativo
+  modelos/            modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx e o logo do
+                      DOCUMENTO — o que o Python LÊ (não vem no repositório, ver acima)
+
+frontend/             tudo que o navegador carrega
+  index.html          o formulário e a prévia
+  app.css  app.js
+  fontes/             DM Sans servida localmente (sem depender de rede)
+  imagens/            marca, faixa, símbolo, ícone e o logo da INTERFACE
+
+packaging/            AutoAF.spec — receita do PyInstaller
+testes/               34 suítes — ver "Testes" abaixo
 ```
+
+Uma armadilha ao mexer nisto: `core/caminhos.py` acha a raiz do projeto subindo
+pastas a partir de si mesmo. Como agora ele é `backend/core/caminhos.py`, são
+**três** níveis. Com dois, a "raiz" vira `backend/` e nada de `frontend/` é
+encontrado — o app sobe e serve página em branco.
 
 ---
 

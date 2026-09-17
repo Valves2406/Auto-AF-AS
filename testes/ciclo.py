@@ -6,6 +6,8 @@ import sys, io, os, json, tempfile
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# o FILHO do subprocesso importa `core`, que agora mora em backend/
+BACKEND = os.path.join(PROJ, "backend")
 # arquivo de dados isolado: o teste NAO toca no cadastro real
 TMP = os.path.join(tempfile.gettempdir(), "teste_aprendizado_dados.json")
 for f in (TMP, TMP + ".bak", os.path.join(os.path.dirname(TMP), "propostas_lidas.json")):
@@ -13,6 +15,7 @@ for f in (TMP, TMP + ".bak", os.path.join(os.path.dirname(TMP), "propostas_lidas
         os.remove(f)
 io.open(TMP, "w", encoding="utf-8").write("{}")
 os.environ["GERADORAF_DADOS"] = TMP
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 os.chdir(PROJ)
 from core import aprendizado as ap
@@ -106,7 +109,7 @@ import subprocess
 codigo = (
     "import os,sys;"
     f"os.environ['GERADORAF_DADOS']=r'{TMP}';"
-    f"sys.path.insert(0,r'{PROJ}');"
+    f"sys.path.insert(0,r'{BACKEND}');"
     "from core import aprendizado as ap;"
     f"r=ap.leitura(r'{falso_pdf}');"
     "print('TEXTO_OK' if r.get('texto') else 'VAZIO');"

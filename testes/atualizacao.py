@@ -14,6 +14,7 @@ for f in (TMP, TMP + ".bak"):
         os.remove(f)
 io.open(TMP, "w", encoding="utf-8").write("{}")
 os.environ["GERADORAF_DADOS"] = TMP
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 os.chdir(PROJ)
 from core import dados_eletronet as de

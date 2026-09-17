@@ -22,6 +22,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core.extrator import ExtratorProposta
 
@@ -146,7 +147,7 @@ print("\n== a garantia em FRASE não vira número + unidade errada ==")
 # cinco meses no documento. A unidade passou a ser obrigatória no regex — sem
 # ela colada ao número, o texto inteiro vai para a opção "Livre".
 # Comportamento conferido no app rodando; aqui fica a regra.
-js = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
+js = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
 # a janela cobre a função inteira: ela cresceu quando passou a decidir também
 # se a frase É a duração ou apenas CONTÉM uma
 corpo = js[js.index("function splitDur("):][:1800]

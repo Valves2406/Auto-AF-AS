@@ -4,6 +4,8 @@ import sys, io, os, json, tempfile, shutil, subprocess
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# o FILHO do subprocesso importa `core`, que agora mora em backend/
+BACKEND = os.path.join(PROJ, "backend")
 
 # perfil FALSO para as duas "maquinas" — nao encosta no APPDATA real
 BASE = os.path.join(tempfile.gettempdir(), "teste_equipe")
@@ -37,7 +39,7 @@ def rodar(perfil, codigo):
 
 
 CAB = ("import sys,os,json;sys.path.insert(0,r'%s');"
-       "from core import dados_eletronet as de;" % PROJ)
+       "from core import dados_eletronet as de;" % BACKEND)
 
 print("== A e B começam separadas ==")
 a = rodar(MAQ_A, CAB + "print('>>', de.USER_JSON)")

@@ -29,6 +29,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import engine
 
@@ -42,8 +43,8 @@ def ok(nome, cond, extra=""):
         falhas.append(nome)
 
 
-ASSETS = os.path.join(PROJ, "assets")
-WEB = os.path.join(PROJ, "web")
+ASSETS = os.path.join(PROJ, "frontend", "imagens")
+WEB = os.path.join(PROJ, "frontend")
 
 print("== a marca existe e está montada certo ==")
 marca = os.path.join(ASSETS, "autoafas_logo.png")
@@ -68,7 +69,7 @@ except ImportError:                       # sem Pillow, o resto do teste vale
 print("\n== a tela de carregamento usa a marca ==")
 html = io.open(os.path.join(WEB, "index.html"), encoding="utf-8").read()
 css = io.open(os.path.join(WEB, "app.css"), encoding="utf-8").read()
-appy = io.open(os.path.join(PROJ, "app.py"), encoding="utf-8").read()
+appy = io.open(os.path.join(PROJ, "backend", "app.py"), encoding="utf-8").read()
 ok("a splash aponta para a marca", 'src="marca.png"' in html)
 # A janela do app é uma janela de navegador: o ícone que o Windows põe na barra
 # de tarefas dela vem do FAVICON, não do executável. Apontando a aba para o

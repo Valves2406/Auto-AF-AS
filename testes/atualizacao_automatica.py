@@ -35,6 +35,7 @@ import tempfile
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core import atualizador as at
 
@@ -133,7 +134,7 @@ shutil.rmtree(atrapalho, ignore_errors=True)
 
 # o desfazer depois da 1ª renomeação não dá para forçar de fora sem simular
 # falha de sistema de arquivos; fica a garantia de que o código existe
-fonte = io.open(os.path.join(PROJ, "core", "atualizador.py"), encoding="utf-8").read()
+fonte = io.open(os.path.join(PROJ, "backend", "core", "atualizador.py"), encoding="utf-8").read()
 ok("se a 2ª renomeação falhar, o antigo volta",
    "os.rename(velho, exe)" in fonte and "melhor a versão velha que nenhuma" in fonte)
 

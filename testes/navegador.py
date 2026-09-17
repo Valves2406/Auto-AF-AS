@@ -22,6 +22,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 import app
 
@@ -113,10 +114,10 @@ ok("os seis estao previstos", set(app.NAVEGADORES) == set(TODOS), str(sorted(app
 ok("cada um tem pelo menos um caminho previsto",
    all(v[2] for v in app.NAVEGADORES.values()))
 ok("o registro do Windows e consultado", "UrlAssociations" in io.open(
-   os.path.join(PROJ, "app.py"), encoding="utf-8").read())
+   os.path.join(PROJ, "backend", "app.py"), encoding="utf-8").read())
 ok("ler o registro nunca derruba o app", "except Exception as exc:" in io.open(
-   os.path.join(PROJ, "app.py"), encoding="utf-8").read()[
-       io.open(os.path.join(PROJ, "app.py"), encoding="utf-8").read().index("_padrao_do_windows"):])
+   os.path.join(PROJ, "backend", "app.py"), encoding="utf-8").read()[
+       io.open(os.path.join(PROJ, "backend", "app.py"), encoding="utf-8").read().index("_padrao_do_windows"):])
 
 app._caminho = _caminho_real
 print("\n%s" % ("TUDO OK" if not falhas else "FALHAS (%d): %s" % (len(falhas), ", ".join(falhas))))

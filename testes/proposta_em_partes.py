@@ -38,6 +38,7 @@ import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(PROJ, "backend"))
 sys.path.insert(0, PROJ)
 from core.extrator import ExtratorProposta
 
@@ -52,8 +53,8 @@ def ok(nome, cond, extra=""):
 
 
 E = ExtratorProposta()
-JS = io.open(os.path.join(PROJ, "web", "app.js"), encoding="utf-8").read()
-HTML = io.open(os.path.join(PROJ, "web", "index.html"), encoding="utf-8").read()
+JS = io.open(os.path.join(PROJ, "frontend", "app.js"), encoding="utf-8").read()
+HTML = io.open(os.path.join(PROJ, "frontend", "index.html"), encoding="utf-8").read()
 
 print("== a tela aceita escolher várias partes ==")
 ok("o seletor de arquivo aceita vários", 'id="filePdf"' in HTML and "multiple" in
@@ -105,7 +106,7 @@ ok("duas palavras batendo vencem uma",
    str((achado or {}).get("empresa")))
 
 # e a guarda de empate existe: peso igual não escolhe
-fonte = io.open(os.path.join(PROJ, "core", "extrator.py"), encoding="utf-8").read()
+fonte = io.open(os.path.join(PROJ, "backend", "core", "extrator.py"), encoding="utf-8").read()
 ok("empate devolve nada, em vez de chutar",
    "if len(pesos) > 1 and pesos[0][0] == pesos[1][0]:" in fonte)
 ok("e o peso é (nº de palavras, tamanho da maior)",
