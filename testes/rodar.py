@@ -55,6 +55,7 @@ SUITES = [
     ("divisorias_orcamento", "As divisorias do quadro Orcamento nao somem"),
     ("composicao_financeira", "Composicao financeira: parcela vira item, resultado nao"),
     ("locais_e_subtotais", "Subtotal de secao nao e produto; locais e filiais da proposta"),
+    ("colunas_e_estacoes", "Coluna pelo cabecalho e quadro de estacoes como entrega"),
     ("arrastar_proposta", "Arrastar a proposta para a tela le o arquivo"),
 ]
 

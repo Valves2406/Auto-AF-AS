@@ -1321,7 +1321,8 @@ class ExtratorProposta:
         return itens
 
     def _item_de_celulas(self, cels: list[str], cols_imposto: set = frozenset(),
-                         cols_pg: dict | None = None) -> ItemAF | None:
+                         cols_pg: dict | None = None,
+                         cols_qu: dict | None = None) -> ItemAF | None:
         """Monta um ItemAF de UMA linha de tabela (heurística por colunas:
         descrição = célula textual mais longa; Part Number = token código-like
         que NÃO é NCM; preços = células '#.###,##', menos as colunas de imposto).
@@ -1339,9 +1340,20 @@ class ExtratorProposta:
         # As colunas de prazo/garantia também são inteiros curtos e vêm depois da
         # descrição: sem excluí-las, "15" (dias) podia ser lido como quantidade.
         cols_pg = cols_pg or {}
+        cols_qu = cols_qu or {}
         fora = set(cols_imposto) | {j for j, _ in cols_pg.values()}
-        qtd = next((c for j, c in enumerate(cels)
-                    if j > di and j not in fora and re.fullmatch(r"\d{1,4}", c)), "")
+        # A COLUNA DITA PELO CABEÇALHO MANDA; a heurística é a reserva.
+        # Com duas localidades ("Recife | Recife Tecto | Total"), a busca pelo
+        # primeiro inteiro pegava a quantidade de UM site em vez da soma.
+        qtd = ""
+        if "qtd" in cols_qu:
+            j = cols_qu["qtd"]
+            bruto = cels[j].strip() if j < len(cels) else ""
+            if re.fullmatch(r"\d{1,4}", bruto):
+                qtd = bruto
+        if not qtd:
+            qtd = next((c for j, c in enumerate(cels)
+                        if j > di and j not in fora and re.fullmatch(r"\d{1,4}", c)), "")
         # CÓDIGO: a coluna dita pelo cabeçalho manda; a heurística é a reserva.
         cod = ""
         if "codigo" in cols_pg:
@@ -1362,8 +1374,25 @@ class ExtratorProposta:
         # geral): sem qtd, sem código e descrição de 1 palavra → não é item.
         if not qtd and not cod and len(desc.split()) <= 1:
             return None
-        # 3 preços = [unit s/imp, unit c/imp, total]; 2 = [unit c/imp, total]; 1 = [total]
-        if len(precos) >= 3:
+        # O CABEÇALHO manda, quando diz qual coluna é o unitário. Sem ele, a
+        # contagem: 3 preços = [unit s/imp, unit c/imp, total]; 2 = [unit c/imp,
+        # total]; 1 = [total].
+        #
+        # A contagem erra quando a tabela traz VÁRIAS colunas de total (sem
+        # impostos, com impostos, sem ICMS): o "segundo preço" vira o TOTAL sem
+        # impostos e é gravado como unitário com impostos. Na Padtec 1979 isso
+        # punha R$ 21.572,74 (o total de 2 peças) no campo do preço de uma.
+        if "unit" in cols_qu:
+            j = cols_qu["unit"]
+            bruto = cels[j] if j < len(cels) else ""
+            if self._eh_preco(bruto):
+                # o cabeçalho diz "Preço unit. SEM impostos": não há unitário
+                # com impostos nesta tabela, e inventar um seria pior que deixar
+                # vazio — o documento mostra o que a proposta traz.
+                us, uc = bruto, ""
+            else:
+                us = uc = ""
+        elif len(precos) >= 3:
             us, uc = precos[0], precos[1]
         elif len(precos) == 2:
             us, uc = "", precos[0]
@@ -1523,6 +1552,113 @@ class ExtratorProposta:
                 "municipio": mun.group(1).strip() if mun else nome,
                 "uf": mun.group(2) if mun else uf, "endereco": endereco}
 
+    # Cabeçalho da coluna de QUANTIDADE que vale. Tem de ser a célula INTEIRA:
+    # "Preço TOTAL sem impostos" também contém "total", e casar por conteúdo
+    # tomaria a coluna de dinheiro por quantidade.
+    # NOMES COM PREFIXO `_CAB_COL_` de propósito. Já existe um `_CAB_QTD` nesta
+    # classe, com outro significado (reconhecer se uma folha É tabela de itens).
+    # Duas constantes com o mesmo nome na mesma classe não dão erro: a última
+    # definida simplesmente vence, e a outra passa a resolver para ela. Foi o
+    # que aconteceu aqui — a detecção de coluna calou e a quantidade continuou
+    # vindo errada, sem nenhum sinal.
+    _CAB_COL_QTD = re.compile(r"^\s*(total|qtd\.?|qtde\.?|quant\.?|quantidade)\s*$", re.I)
+    _CAB_COL_UNIT = re.compile(r"pre[çc]o\s*unit", re.I)
+
+    def _cols_qtd_unit(self, linhas: list[list[str]]) -> dict:
+        """Onde estão a QUANTIDADE e o PREÇO UNITÁRIO, pelo cabeçalho.
+
+        Por que não dá para achar por posição. A Padtec põe uma coluna de
+        quantidade POR SITE antes da coluna "Total":
+
+            Código | Descrição | Recife | Recife Tecto | Total | Preço unit. | Preço TOTAL…
+            MUX…   | …         |   1    |      1       |   2   |  10.786,37  |  21.572,74
+
+        A regra antiga pegava o primeiro inteiro depois da descrição — ou seja,
+        "Recife" (1) em vez de "Total" (2) — e o segundo preço como unitário, que
+        aqui é o TOTAL sem impostos. Saía "1 x R$ 21.572,74" no lugar de
+        "2 x R$ 10.786,37".
+
+        E passava despercebido: o TOTAL da linha continuava certo, então a soma
+        fechava com o valor da proposta e nenhum aviso disparava. Só a
+        quantidade e o unitário iam errados para a AF — que é o que o fornecedor
+        lê para separar o material.
+
+        Numa proposta de um site só (2026-2023) havia apenas "Site 1 | Total", e
+        a contagem por posição acertava por sorte. Bastou a segunda localidade
+        para deslocar tudo.
+        """
+        for cels in linhas[:4]:                  # o cabeçalho está no topo
+            achado = {}
+            for j, c in enumerate(cels):
+                texto = " ".join(str(c or "").split())
+                if "qtd" not in achado and self._CAB_COL_QTD.match(texto):
+                    achado["qtd"] = j
+                elif "unit" not in achado and self._CAB_COL_UNIT.search(texto):
+                    achado["unit"] = j
+            if "qtd" in achado or "unit" in achado:
+                return achado
+        return {}
+
+    def _estacoes_de_tabela(self, linhas: list[list[str]]) -> list[dict]:
+        """Locais de entrega de uma tabela de ESTAÇÕES.
+
+        A Padtec fecha a proposta com um quadro que já traz tudo que a AF pede:
+
+            Nome da Estação | Sigla do POP | Endereço            | Município  | UF
+            Recife          | RCE-RCE      | Rodovia PE-7, km 20 | Jaboatão…  | PE
+            RJ2 Datacenter  | RJ2          | Estrada Adhemar…    | Rio de Jan.| RJ
+            Teleporto       | TLP          | Rua Afonso Caval…   | Rio de Jan.| RJ
+
+        Saía ZERO local numa proposta que os enumera com sigla e endereço —
+        justamente o campo que mais custa tempo para preencher à mão.
+
+        AS COLUNAS SÃO ACHADAS PELO QUE O CABEÇALHO CONTÉM, não pela posição.
+        Na proposta do Rio o cabeçalho vem quebrado no lugar errado:
+
+            'Nome da Estação Sigla' | 'do POP' | 'Endereço' | ...
+
+        A palavra "Sigla" migrou para a primeira célula. Casar por igualdade,
+        ou por posição, funcionaria em Recife e falharia no Rio — e as duas são
+        a mesma proposta, só que de outra cidade.
+
+        Por isso a sigla é procurada por "POP" (que ficou na célula certa) e o
+        nome por "esta" — nessa ordem, senão 'Nome da Estação Sigla' casaria
+        como coluna de sigla.
+        """
+        if len(linhas) < 2:
+            return []
+        cab = linhas[0]
+        baixo = [self._sem_acento(c) for c in cab]
+        col = {}
+        for j, c in enumerate(baixo):
+            if "sigla" not in col and "pop" in c:
+                col["sigla"] = j
+            elif "nome" not in col and "esta" in c:
+                col["nome"] = j
+            elif "endereco" not in col and "endere" in c:
+                col["endereco"] = j
+            elif "municipio" not in col and "munic" in c:
+                col["municipio"] = j
+            elif "uf" not in col and c.strip() == "uf":
+                col["uf"] = j
+        # sem NOME e ENDEREÇO não é quadro de entrega — é outra tabela qualquer
+        if "nome" not in col or "endereco" not in col:
+            return []
+
+        out = []
+        for cels in linhas[1:]:
+            if all(set(c) <= set("-: ") for c in cels):        # separador
+                continue
+            pega = lambda k: (cels[col[k]].strip()
+                              if k in col and col[k] < len(cels) else "")   # noqa: E731
+            nome, end = pega("nome"), pega("endereco")
+            if not nome or not end or self._eh_preco(end):
+                continue
+            out.append({"nome": nome, "sigla": pega("sigla"),
+                        "endereco": end, "municipio": pega("municipio"),
+                        "uf": pega("uf").upper()[:2]})
+        return out
+
     def _itens_de_tabela(self, linhas: list[list[str]]) -> list[ItemAF]:
         """Constrói os itens de UMA tabela: detecta as colunas de imposto pelo
         cabeçalho e aplica em todas as linhas de dados."""
@@ -1533,11 +1669,19 @@ class ExtratorProposta:
         if quadro:
             self._entregas_lidas = (getattr(self, "_entregas_lidas", []) or []) + entregas
             return quadro
+        # QUADRO DE ESTAÇÕES: é tabela de ENTREGA, não de itens. Devolve lista
+        # vazia de propósito — sem isto, "Recife | RCE-RCE | Rodovia PE-7…"
+        # entraria na AF como se fosse um produto.
+        estacoes = self._estacoes_de_tabela(linhas)
+        if estacoes:
+            self._entregas_lidas = (getattr(self, "_entregas_lidas", []) or []) + estacoes
+            return []
         cols_imp = self._cols_imposto_tabela(linhas)
         cols_pg = self._cols_prazo_garantia(linhas)
+        cols_qu = self._cols_qtd_unit(linhas)
         out = []
         for cels in linhas:
-            it = self._item_de_celulas(cels, cols_imp, cols_pg)
+            it = self._item_de_celulas(cels, cols_imp, cols_pg, cols_qu)
             if it:
                 out.append(it)
         return out
