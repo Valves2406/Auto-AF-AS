@@ -14,12 +14,24 @@ Decisões:
   • console=False: a janela é o Edge; um console preto atrás seria ruído.
 """
 
+import os
+
 from PyInstaller.utils.hooks import collect_data_files
+
+# CAMINHOS A PARTIR DO PRÓPRIO SPEC, não do diretório de onde se chama.
+# O spec mora em packaging/ e o código em backend/ e frontend/. Com caminhos
+# relativos ("../frontend"), o build só funcionava se chamado de dentro de
+# packaging/ — de qualquer outro lugar ele não achava nada e gerava um .exe
+# que abre e não serve página nenhuma.
+RAIZ = os.path.dirname(SPECPATH)            # packaging/ -> raiz do projeto
+BACKEND = os.path.join(RAIZ, "backend")
+FRONTEND = os.path.join(RAIZ, "frontend")
+ICONE = os.path.join(FRONTEND, "imagens", "app.ico")
 
 # dados que precisam viajar junto (origem, destino dentro do bundle)
 datas = [
-    ("../backend/modelos", "backend/modelos"),
-    ("../frontend", "frontend"),
+    (os.path.join(BACKEND, "modelos"), "backend/modelos"),
+    (FRONTEND, "frontend"),
 ]
 # pdfplumber/pdfminer levam tabelas .txt de codificação que não são detectadas
 datas += collect_data_files("pdfminer")
@@ -33,8 +45,9 @@ excluidos = [
 ]
 
 a = Analysis(
-    ["app.py"],
-    pathex=[],
+    [os.path.join(BACKEND, "app.py")],
+    # backend/ no path: é de lá que saem `engine` e o pacote `core`
+    pathex=[BACKEND],
     binaries=[],
     datas=datas,
     hiddenimports=[
@@ -75,5 +88,5 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,          # sem janela preta: quem aparece é o Edge
     disable_windowed_traceback=False,
-    icon="../frontend/imagens/app.ico" if __import__("os").path.exists("../frontend/imagens/app.ico") else None,
+    icon=ICONE if os.path.exists(ICONE) else None,
 )

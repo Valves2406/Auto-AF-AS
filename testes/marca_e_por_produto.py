@@ -47,12 +47,35 @@ ASSETS = os.path.join(PROJ, "frontend", "imagens")
 WEB = os.path.join(PROJ, "frontend")
 
 print("== a marca existe e está montada certo ==")
-marca = os.path.join(ASSETS, "autoafas_logo.png")
-simb = os.path.join(ASSETS, "autoafas_simbolo.png")
+# A marca é SVG: vetor, nítida em qualquer tela e em qualquer zoom — e o app
+# roda de 360px a 1920px. O PNG fica como reserva; o .ico é do executável.
+marca_svg = os.path.join(ASSETS, "marca.svg")
+simb_svg = os.path.join(ASSETS, "simbolo.svg")
+marca_png = os.path.join(ASSETS, "marca.png")
 ico = os.path.join(ASSETS, "app.ico")
-ok("a marca cheia está nos assets", os.path.exists(marca))
-ok("o símbolo sozinho também", os.path.exists(simb))
+ok("a marca é SVG", os.path.exists(marca_svg))
+ok("o símbolo também", os.path.exists(simb_svg))
+ok("e há PNG de reserva", os.path.exists(marca_png))
 ok("e o ícone do executável", os.path.exists(ico))
+
+# O TEXTO DO LOGO é <text>, não curva. Um SVG carregado por <img> é documento
+# ISOLADO: não enxerga as fontes da página e cairia na fonte do sistema (a
+# DejaVu Sans que o arquivo pede não está instalada). Embutido no HTML, ele usa
+# a DM Sans que o próprio app serve. Por isso a marca é <symbol> + <use>, e
+# NÃO <img src="marca.svg">.
+htm = io.open(os.path.join(WEB, "index.html"), encoding="utf-8").read()
+svg_marca = io.open(marca_svg, encoding="utf-8").read()
+if "<text" in svg_marca:
+    ok("o logo está EMBUTIDO no HTML, não em <img>",
+       'id="marcaAFAS"' in htm and 'src="marca.svg"' not in htm,
+       "por <img> o texto do logo sairia na fonte do sistema")
+    ok("e usa a fonte que o app serve",
+       "DM Sans" in svg_marca and "DejaVu" not in svg_marca,
+       "a DejaVu Sans não está instalada no Windows")
+ok("definido UMA vez e reaproveitado", htm.count('id="marcaAFAS"') == 1
+   and htm.count('href="#marcaAFAS"') >= 2,
+   "duas cópias do mesmo desenho saem de sincronia")
+
 try:
     from PIL import Image
     with Image.open(ico) as im:
@@ -60,9 +83,6 @@ try:
     ok("o ícone traz várias resoluções", len(medidas) >= 5, str(medidas))
     ok("inclusive 16px (barra de tarefas) e 256px (visualização grande)",
        16 in medidas and 256 in medidas, str(medidas))
-    with Image.open(simb) as im:
-        ok("o símbolo é quadrado", im.width == im.height, "%dx%d" % im.size)
-        ok("e tem fundo transparente", im.mode == "RGBA" and im.getextrema()[3][0] == 0)
 except ImportError:                       # sem Pillow, o resto do teste vale
     print("  (Pillow ausente: não dá p/ conferir as resoluções do .ico)")
 
@@ -70,7 +90,14 @@ print("\n== a tela de carregamento usa a marca ==")
 html = io.open(os.path.join(WEB, "index.html"), encoding="utf-8").read()
 css = io.open(os.path.join(WEB, "app.css"), encoding="utf-8").read()
 appy = io.open(os.path.join(PROJ, "backend", "app.py"), encoding="utf-8").read()
-ok("a splash aponta para a marca", 'src="marca.png"' in html)
+# A splash mostra a marca — mas o COMO mudou: era <img src="marca.png">, agora
+# é o mesmo <symbol> SVG que a barra do topo usa. A asserção antiga exigia o
+# `src`, então quebrou numa troca que só melhorou o desenho. Guarda a
+# propriedade: a tela de carregamento exibe a marca.
+ok("a splash mostra a marca",
+   'class="splash-marca"' in html
+   and 'href="#marcaAFAS"' in html.split('class="splash-marca"')[1][:200],
+   "a tela de carregamento tem de abrir com a marca")
 # A janela do app é uma janela de navegador: o ícone que o Windows põe na barra
 # de tarefas dela vem do FAVICON, não do executável. Apontando a aba para o
 # mesmo app.ico, os dois lugares mostram o mesmo desenho — e o .ico traz de 16 a

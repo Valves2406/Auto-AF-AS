@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+
+    <defs>
+      <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="120" y1="180" x2="850" y2="850">
+        <stop offset="0%" stop-color="#1238FF"/>
+        <stop offset="42%" stop-color="#087DFF"/>
+        <stop offset="100%" stop-color="#16F1F1"/>
+      </linearGradient>
+      <linearGradient id="gText" x1="0%" y1="40%" x2="100%" y2="60%">
+        <stop offset="0%" stop-color="#1238FF"/>
+        <stop offset="50%" stop-color="#0A8DFF"/>
+        <stop offset="100%" stop-color="#17EEF2"/>
+      </linearGradient>
+      <clipPath id="fiberClip">
+        <path d="M0 0 H1024 V1024 H0 Z M250 346 Q218 346 218 380 L218 808 Q218 844 254 844 L676 844 Q712 844 712 808 L712 520 Q712 500 697 485 L585 365 Q568 346 542 346 Z" fill-rule="evenodd" clip-rule="evenodd"/>
+      </clipPath>
+    </defs>
+    <g aria-label="Auto AF/AS app icon">
+      <g opacity="0.99" clip-path="url(#fiberClip)"><rect x="206.2" y="337.3" width="78.0" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(190.0 245.2 351.3)"/>
+<rect x="233.7" y="269.8" width="79.7" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(204.1 273.6 283.8)"/>
+<rect x="279.3" y="210.6" width="81.3" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(218.3 320.0 224.6)"/>
+<rect x="339.8" y="163.3" width="83.0" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(232.4 381.3 177.3)"/>
+<rect x="411.2" y="130.4" width="84.6" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(246.5 453.5 144.4)"/>
+<rect x="488.9" y="113.6" width="86.3" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(260.7 532.0 127.6)"/>
+<rect x="567.9" y="113.7" width="87.9" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(274.8 611.9 127.7)"/>
+<rect x="643.6" y="130.2" width="89.6" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(288.9 688.3 144.2)"/>
+<rect x="711.2" y="161.9" width="91.2" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(303.0 756.8 175.9)"/>
+<rect x="766.9" y="206.5" width="92.9" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(317.2 813.3 220.5)"/>
+<rect x="807.6" y="261.2" width="94.5" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(331.3 854.8 275.2)"/>
+<rect x="831.0" y="322.3" width="96.2" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(345.4 879.1 336.3)"/>
+<rect x="836.2" y="386.0" width="97.8" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(359.6 885.1 400.0)"/>
+<rect x="823.2" y="448.6" width="99.5" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(373.7 873.0 462.6)"/>
+<rect x="793.2" y="506.1" width="101.1" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(387.8 843.8 520.1)"/>
+<rect x="748.5" y="555.3" width="102.8" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(402.0 799.9 569.3)"/>
+<rect x="691.9" y="593.4" width="104.4" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(416.1 744.1 607.4)"/>
+<rect x="627.2" y="618.3" width="106.1" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(430.2 680.3 632.3)"/>
+<rect x="558.5" y="628.7" width="107.7" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(444.3 612.4 642.7)"/>
+<rect x="489.9" y="624.5" width="109.4" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(458.5 544.6 638.5)"/>
+<rect x="425.6" y="606.2" width="111.0" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(472.6 481.1 620.2)"/>
+<rect x="369.3" y="575.2" width="112.7" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(486.7 425.6 589.2)"/>
+<rect x="324.0" y="533.6" width="114.3" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(500.9 381.2 547.6)"/>
+<rect x="292.3" y="484.4" width="116.0" height="28.0" rx="14.0" fill="url(#g)" transform="rotate(515.0 350.3 498.4)"/></g>
+      <g transform="translate(0 0)" fill="none" stroke="url(#g)" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M250 346 Q218 346 218 380 L218 808 Q218 844 254 844 L676 844 Q712 844 712 808 L712 520 Q712 500 697 485 L585 365 Q568 346 542 346 Z" stroke-width="54"/>
+        <path d="M548 360 L548 487 Q548 520 580 520 L696 520" stroke-width="54"/>
+        <path d="M312 622 H608" stroke-width="44"/>
+        <path d="M312 694 H608" stroke-width="44"/>
+        <path d="M312 766 H570" stroke-width="44"/>
+      </g>
+    </g>
+</svg>

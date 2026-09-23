@@ -267,16 +267,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 with open(p, "rb") as f:
                     return self._send(200, f.read(), "image/x-icon")
             return self._send(404, b"", "image/x-icon")
-        if path in ("/marca.png", "/simbolo.png", "/faixa.png"):
-            # marca do Auto AF/AS: a cheia na tela de carregamento, o símbolo
-            # sozinho na aba do navegador (aos 16px o texto vira sujeira).
-            arq = {"/marca.png": "autoafas_logo.png",
-                   "/faixa.png": "autoafas_faixa.png"}.get(path, "autoafas_simbolo.png")
+        if path in ("/marca.svg", "/marca.png", "/simbolo.svg", "/simbolo.png"):
+            # Marca do Auto AF/AS. A rota serve pelo PRÓPRIO nome do arquivo —
+            # antes havia um de-para para nomes internos ("autoafas_logo.png"),
+            # e trocar o conjunto de imagens exigia lembrar de mexer aqui
+            # também. Agora o nome da rota é o nome do arquivo.
+            #
+            # O SVG é o que vale: vetor, nítido em qualquer tela e em qualquer
+            # zoom. O PNG fica como reserva.
+            arq = path.lstrip("/")
             p = recurso("frontend", "imagens", arq)
+            tipo = "image/svg+xml" if arq.endswith(".svg") else "image/png"
             if os.path.exists(p):
                 with open(p, "rb") as f:
-                    return self._send(200, f.read(), "image/png")
-            return self._send(404, b"", "image/png")
+                    return self._send(200, f.read(), tipo)
+            return self._send(404, b"", tipo)
         if path == "/api/preparar":
             # progresso da preparação, p/ a tela de carregamento
             with _PREP_LOCK:

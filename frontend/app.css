@@ -360,6 +360,14 @@ body {
    o espaço que era dos três pedaços que ela substituiu. O arquivo tem
    120px de altura, mais de 2x, para não serrilhar em tela retina.
    58px foi medido na tela: em 46px o "by eletronet" já fechava demais. */
+/* A MARCA AGORA É SVG EMBUTIDO, não <img>.
+   Um `<img>` tem tamanho intrínseco e `width:auto` já devolve a proporção. Um
+   `<svg>` inline não tem: sem dizer nada, ele assume 100% de largura e estica.
+   O `aspect-ratio` devolve a proporção do desenho (2200x760), e aí a altura
+   continua mandando — todas as faixas de largura abaixo seguem valendo. */
+.marca-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.topbar .faixa,
+.splash-marca { aspect-ratio: 2200 / 760; }
 .topbar .faixa { height: 58px; width: auto; display: block; }
 /* A faixa cede junto com o resto. Ela é a maior peça fixa da barra, e deixá-la
    rígida enquanto os botões se apertam é o que empurrava o "Gerar PDF" para
