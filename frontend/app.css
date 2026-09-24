@@ -67,80 +67,72 @@ body {
 ::selection { background: var(--sel); }
 
 /* --------------------------------------------------------------- tokens --- */
-/* Toda a escala neutra vive na MATIZ 244 do azul da marca — assim o cinza da
-   interface e parente do azul, e nao um cinza qualquer ao lado dele. */
+/* ===========================================================================
+   TOKENS — UMA definição por tema, e só uma.
+   ===========================================================================
+   Aqui havia TRÊS blocos `body.dark` e TRÊS `body.light`, cada um redefinindo
+   os mesmos tokens: oito definições de `--primary` no arquivo. Em CSS vence a
+   ÚLTIMA, então editar a cor no bloco de cima não fazia efeito nenhum — e
+   descobrir por quê exigia achar as oito e ver qual vinha depois. Aconteceu.
+
+   Os valores abaixo são os que o navegador computava ANTES desta junção,
+   lidos do app rodando. A limpeza é, por construção, sem mudança visual.
+
+   Ao mexer numa cor: é AQUI, e só aqui.
+   =========================================================================== */
 body.dark {
-  --bg:#0b0a19; --bg2:#110f24; --card:#17152d; --card2:#131127;
-  --fg:#eeedf7; --fg-soft:#c6c4de; --muted:#9391b6;
-  /* AZUL DA MARCA. O #0000FF puro não se sustenta sobre fundo quase preto
-     (1,7 de contraste), então o escuro usa a versão iluminada DELE — mesma
-     matiz, mais claridade. O #5d52ff que havia aqui tinha R93 > G82: puxava
-     para o violeta e deixava de ser o azul da Eletronet. Este tem G > R.
-     ATENÇÃO: este valor NÃO é o que vale. Há outros dois blocos de tokens
-     depois deste no arquivo, e quem manda é o ÚLTIMO — procure por
-     "--primary:" e edite a última ocorrência. Três gerações de tema
-     empilhadas é o motivo de uma mudança de cor aqui "não fazer efeito". */
-  --primary:#3d5bff; --primary-dim:#2440f0;
-  /* ACAO — o terracota da MARCA, sem clarear. A versão clareada (#e66233)
-     ficava bonita mas dava contraste 3,41 com o texto branco: reprova. O
-     #D04918 do site dá 4,52 e passa — a cor certa também é a legível. */
+  --bg:#080e18; --bg2:#0b1422; --card:#101d2d; --card2:#142336;
+  --surface-head:#142236;
+  --fg:#edf4ff; --fg-soft:#c2d0e2; --muted:#91a5be;
+  --primary:#3557ff; --primary-dim:#2340d4; --fio:#5bd8ff;
   --acao:#d04918; --acao-fg:#fff; --acao-dim:#b53f15;
-  --border:#2a2749; --border-soft:#1f1d39;
-  --input-bg:#0f0e20; --input-border:#343258;
+  --border:#2a3d54; --border-soft:#1c2c40;
+  --input-bg:#17273b; --input-border:#3a516b;
   --success:#19b98f; --info:#6f8bff; --danger:#ff6274; --warn:#f0a92c;
-  --fio:#6b83ff;
-  /* as tintas suaves acompanham o --primary: 61,91,255 é o #3d5bff em rgb */
-  --soft:rgba(61,91,255,.16); --soft-bd:rgba(61,91,255,.42); --soft-fg:#b9c6ff;
-  /* azul de TEXTO: o --primary cheio da 3,48 sobre o card e reprova */
-  --link:#9fb0ff;
-  --ring:rgba(61,91,255,.5);
-  /* Sombras do site: discretas, quase so um assentamento. Nada de halo. */
+  --soft:rgba(63,106,255,.13); --soft-bd:#3b5a93; --soft-fg:#c6dcff;
+  --link:#91caff; --ring:rgba(91,216,255,.15); --sel:rgba(71,143,255,.35);
   --sh-1:0 1px 2px rgba(4,3,20,.5);
   --sh-2:0 1px 2px rgba(4,3,20,.4), 0 4px 14px -6px rgba(20,12,90,.5);
   --sh-3:0 2px 4px rgba(4,3,20,.4), 0 12px 32px -12px rgba(30,18,140,.55);
   --luz:inset 0 1px 0 rgba(255,255,255,.05);
-  --sel:rgba(61,91,255,.34);
-  --glow:radial-gradient(1200px 560px at 80% -14%, rgba(61,91,255,.15), transparent 62%);
-  /* ---- camada de instrumento: profundidade, luz e malha ------------------
-     A tela ja era escura e roxa; o que faltava nao era COR, era LUZ. Tudo
-     abaixo e luminosidade e relevo, na mesma matiz da marca — nenhuma cor
-     nova entra, senao a interface deixa de ser da Eletronet. */
-  --aresta:linear-gradient(90deg,transparent,rgba(107,131,255,.5) 16%,rgba(130,152,255,.78) 50%,rgba(107,131,255,.5) 84%,transparent);
-  --campo-fundo:linear-gradient(180deg,rgba(3,2,14,.78),rgba(14,15,38,.45));
-  --campo-dentro:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.022);
-  --foco-luz:0 0 0 3px var(--ring),0 0 20px -3px rgba(61,91,255,.62);
-  --card-fundo:linear-gradient(168deg,rgba(36,42,86,.5),rgba(18,19,41,.42) 46%,rgba(13,13,30,.55));
-  --malha:rgba(107,131,255,.05);
+  --workspace-shadow:0 12px 30px -24px #000;
+  --glow:radial-gradient(1100px 560px at 82% -12%, rgba(35,100,255,.17), transparent 63%);
+  --malha:rgba(73,130,255,.026);
+  --aresta:linear-gradient(90deg,transparent,rgba(64,132,255,.34) 16%,rgba(104,167,255,.68) 50%,rgba(64,132,255,.34) 84%,transparent);
+  --campo-fundo:linear-gradient(180deg,rgba(3,12,28,.82),rgba(10,22,45,.56));
+  --campo-dentro:inset 0 1px 2px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.022);
+  --foco-luz:0 0 0 3px rgba(91,216,255,.15),0 0 22px -5px rgba(44,118,255,.75);
+  --card-fundo:linear-gradient(154deg,rgba(30,66,126,.36),rgba(15,28,55,.46) 48%,rgba(7,17,36,.58));
 }
 body.light {
-  --bg:#f5f5fa; --bg2:#ffffff; --card:#ffffff; --card2:#f9f8fb;
-  --fg:#14122b; --fg-soft:#403d66; --muted:#6a688d;
-  --primary:#1100ff; --primary-dim:#0d00cc;
+  --bg:#eaf0f7; --bg2:#f8faff; --card:#fff; --card2:#f0f5fb;
+  --surface-head:#f4f7fc;
+  --fg:#152841; --fg-soft:#3b526e; --muted:#586f8a;
+  --primary:#2945e8; --primary-dim:#2039c1; --fio:#007ba8;
   --acao:#d04918; --acao-fg:#fff; --acao-dim:#b53f15;
-  --border:#e0dfec; --border-soft:#ececf4;
-  --input-bg:#ffffff; --input-border:#cecddf;
-  --success:#0c7d5d; --info:#3a5cf5; --danger:#dc3545;
-  /* âmbar mais fechado: o #b8791a dava 3,38 sobre o próprio chip tingido */
-  --warn:#8f5c12;
-  --fio:#1100ff;
-  --soft:rgba(17,0,255,.07); --soft-bd:rgba(17,0,255,.24); --soft-fg:#1100ff;
-  --link:#1100ff;                       /* no claro o proprio azul ja da 8,51 */
-  --ring:rgba(17,0,255,.34);
+  --border:#cbd7e6; --border-soft:#e0e8f1;
+  --input-bg:#f6f9fd; --input-border:#acbdd1;
+  --success:#0c7d5d; --info:#3a5cf5; --danger:#dc3545; --warn:#8f5c12;
+  --soft:rgba(41,69,232,.06); --soft-bd:#a5b9e8; --soft-fg:#254ca8;
+  --link:#2151b1; --ring:rgba(41,69,232,.12); --sel:rgba(41,69,232,.16);
   --sh-1:0 1px 2px rgba(20,18,43,.06);
   --sh-2:0 1px 2px rgba(20,18,43,.05), 0 2px 8px rgba(20,18,43,.06);
   --sh-3:0 2px 4px rgba(20,18,43,.06), 0 10px 30px -12px rgba(20,18,43,.18);
   --luz:inset 0 1px 0 rgba(255,255,255,.9);
-  --sel:rgba(17,0,255,.16);
-  --glow:radial-gradient(1200px 560px at 80% -14%, rgba(17,0,255,.05), transparent 62%);
-  /* mesma camada de instrumento, traduzida para o claro: no fundo branco a
-     "luz" vira SOMBRA e contorno, senão não se vê nada */
-  --aresta:linear-gradient(90deg,transparent,rgba(17,0,255,.16) 16%,rgba(17,0,255,.3) 50%,rgba(17,0,255,.16) 84%,transparent);
-  --campo-fundo:linear-gradient(180deg,#fdfdff,#f7f7fd);
-  --campo-dentro:inset 0 1px 2px rgba(20,18,43,.07);
-  --foco-luz:0 0 0 3px var(--ring),0 0 16px -5px rgba(17,0,255,.4);
-  --card-fundo:linear-gradient(168deg,#ffffff,#fcfcff 55%,#f8f8fe);
-  --malha:rgba(17,0,255,.03);
+  --workspace-shadow:0 12px 30px -24px #55708d;
+  --glow:radial-gradient(1100px 560px at 82% -12%, rgba(17,0,255,.075), transparent 63%);
+  --malha:rgba(17,88,220,.018);
+  --aresta:linear-gradient(90deg,transparent,rgba(17,88,220,.12) 16%,rgba(17,88,220,.3) 50%,rgba(17,88,220,.12) 84%,transparent);
+  --campo-fundo:linear-gradient(180deg,#ffffff,#f8faff);
+  --campo-dentro:inset 0 1px 2px rgba(19,47,90,.06);
+  --foco-luz:0 0 0 3px rgba(41,69,232,.12),0 0 20px -7px rgba(17,88,220,.42);
+  --card-fundo:linear-gradient(154deg,#ffffff,#fbfcff 56%,#f5f8ff);
 }
+
+/* Toda a escala neutra vive na MATIZ 244 do azul da marca — assim o cinza da
+   interface e parente do azul, e nao um cinza qualquer ao lado dele. */
+
+
 /* ---- forma: a capsula do site, traduzida para uma tela de formulario ----- */
 :root {
   --r-card: 18px;       /* card                  */
@@ -300,7 +292,6 @@ body {
    ele, 68px (uma linha). O conteúdo pedia 1339px e havia 1342 — cabia por 3px,
    e o gap de 10px do espaçador era exatamente o que faltava.
    É a mesma armadilha que este arquivo já registra no bloco do `.titles`. */
-.topbar .spacer { display: none; }
 /* sem as ações na tela (outras abas), quem encosta na direita é o tema */
 .topbar:has(.acoes[hidden]) #btnTema { margin-left: auto; }
 /* a marca não se deforma: a altura dela já cede pelas faixas, e espremer a
@@ -419,7 +410,6 @@ body {
     max-width: 300px; line-height: 1.3;
   }
 }
-.topbar .spacer { flex: 1; }
 .topbar .acoes { display: flex; align-items: center; gap: 8px; }
 .topbar .sep { width: 1px; align-self: stretch; margin: 5px 2px; background: var(--border); }
 .topbar .btn, .topbar .tab { white-space: nowrap; }
@@ -1189,10 +1179,6 @@ table.items .ix { width: 24px; text-align: center; color: var(--muted); font-wei
   font-style: normal; flex: none; width: 13px; text-align: center; font-size: 11px;
   line-height: 1.5; opacity: .95;
 }
-.st-aviso { color: var(--warn); }
-.st-erro  { color: var(--danger); font-weight: 600; }
-.st-ok    { color: var(--success); }
-.st-info  { color: var(--fg-soft); }
 /* a 1ª linha costuma ser o "o que aconteceu"; as seguintes, as ressalvas */
 .status.multi .st-linha:first-child { font-weight: 600; }
 .status.ok { color: var(--success); }
@@ -1277,36 +1263,8 @@ body.sem-calculo .items th:nth-child(7) { color: var(--warn); }
 /* O roxo da versão anterior não conversa com o azul elétrico da Eletronet.
    Neutros, bordas e profundidade passam a morar no azul-marinho; o azul vivo
    indica caminho e seleção, enquanto o terracota continua reservando "gerar". */
-body.dark {
-  --bg:#061022; --bg2:#09152a; --card:#0f1b34; --card2:#0a162c;
-  --fg:#f4f7ff; --fg-soft:#c5d2e8; --muted:#899ab9;
-  --primary:#2854f5; --primary-dim:#193ccc; --fio:#36bdf4;
-  --border:#243a5e; --border-soft:#172b4a; --input-bg:#081327; --input-border:#304a73;
-  --soft:rgba(40,84,245,.15); --soft-bd:rgba(72,123,255,.48); --soft-fg:#b9d1ff;
-  --link:#8ec3ff; --ring:rgba(40,84,245,.42);
-  --glow:radial-gradient(1100px 560px at 82% -12%, rgba(35,100,255,.17), transparent 63%);
-  --aresta:linear-gradient(90deg,transparent,rgba(64,132,255,.34) 16%,rgba(104,167,255,.68) 50%,rgba(64,132,255,.34) 84%,transparent);
-  --card-fundo:linear-gradient(154deg,rgba(30,66,126,.36),rgba(15,28,55,.46) 48%,rgba(7,17,36,.58));
-  --campo-fundo:linear-gradient(180deg,rgba(3,12,28,.82),rgba(10,22,45,.56));
-  --campo-dentro:inset 0 1px 2px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.022);
-  --foco-luz:0 0 0 3px var(--ring),0 0 22px -5px rgba(44,118,255,.75);
-  --malha:rgba(73,130,255,.026);
-}
-body.light {
-  --bg:#f3f7fd; --bg2:#ffffff; --card:#ffffff; --card2:#f5f8fe;
-  --fg:#102042; --fg-soft:#394e72; --muted:#647896;
-  --primary:#1100ff; --primary-dim:#0d00ca; --fio:#078bd4;
-  --border:#d6e1f2; --border-soft:#e6edf8; --input-bg:#ffffff; --input-border:#bbcae2;
-  --soft:rgba(17,0,255,.075); --soft-bd:rgba(17,0,255,.25); --soft-fg:#1100d8;
-  --link:#0c52c6; --ring:rgba(17,0,255,.25);
-  --glow:radial-gradient(1100px 560px at 82% -12%, rgba(17,0,255,.075), transparent 63%);
-  --aresta:linear-gradient(90deg,transparent,rgba(17,88,220,.12) 16%,rgba(17,88,220,.3) 50%,rgba(17,88,220,.12) 84%,transparent);
-  --card-fundo:linear-gradient(154deg,#ffffff,#fbfcff 56%,#f5f8ff);
-  --campo-fundo:linear-gradient(180deg,#ffffff,#f8faff);
-  --campo-dentro:inset 0 1px 2px rgba(19,47,90,.06);
-  --foco-luz:0 0 0 3px var(--ring),0 0 20px -7px rgba(17,88,220,.42);
-  --malha:rgba(17,88,220,.018);
-}
+
+
 body { background-size:64px 64px,64px 64px,auto; }
 
 /* ----------------------------------------------------------- barra do topo */
@@ -1351,8 +1309,6 @@ body { background-size:64px 64px,64px 64px,auto; }
   background:var(--card2); color:var(--muted);
 }
 .pdfsel select { height:28px; padding-top:4px; padding-bottom:4px; background-color:transparent; border:0; box-shadow:none; }
-.topbar .sep, .topbar .spacer { display:none; }
-
 @media (min-width:1540px) {
   .topbar .titles { display:grid; flex:0 1 230px; }
   .marca-legenda { display:inline; }
@@ -1596,24 +1552,8 @@ body.preview-collapsed .preview-rail-icon { font-size:16px; }
    FIBRA / 2026 — camada exclusivamente visual da área de trabalho.
    Sem dependências externas; não alcança os documentos dentro dos iframes.
    ======================================================================== */
-body.dark {
-  --bg:#080e18; --bg2:#0b1422; --card:#101d2d; --card2:#142336;
-  --fg:#edf4ff; --fg-soft:#c2d0e2; --muted:#91a5be;
-  --primary:#3557ff; --primary-dim:#2340d4; --fio:#5bd8ff; --link:#91caff;
-  --border:#2a3d54; --border-soft:#1c2c40; --input-bg:#17273b; --input-border:#3a516b;
-  --soft:rgba(63,106,255,.13); --soft-bd:#3b5a93; --soft-fg:#c6dcff;
-  --ring:rgba(91,216,255,.15); --sel:rgba(71,143,255,.35);
-  --surface-head:#142236; --workspace-shadow:0 12px 30px -24px #000;
-}
-body.light {
-  --bg:#eaf0f7; --bg2:#f8faff; --card:#fff; --card2:#f0f5fb;
-  --fg:#152841; --fg-soft:#3b526e; --muted:#586f8a;
-  --primary:#2945e8; --primary-dim:#2039c1; --fio:#007ba8; --link:#2151b1;
-  --border:#cbd7e6; --border-soft:#e0e8f1; --input-bg:#f6f9fd; --input-border:#acbdd1;
-  --soft:rgba(41,69,232,.06); --soft-bd:#a5b9e8; --soft-fg:#254ca8;
-  --ring:rgba(41,69,232,.12); --sel:rgba(41,69,232,.16);
-  --surface-head:#f4f7fc; --workspace-shadow:0 12px 30px -24px #55708d;
-}
+
+
 body {
   --nav-width:104px;
   background-image:radial-gradient(ellipse at 90% 0%,var(--soft),transparent 60%);
@@ -1799,8 +1739,6 @@ input:disabled, textarea:disabled { opacity:.65; cursor:not-allowed; }
 .chipx { border-radius:4px; }
 .idprev { padding:13px 14px; border-radius:7px; border-color:var(--border); background:var(--bg2); border-left:2px solid var(--fio); }
 .idprev b { font-family:var(--mono); }
-.idprev-arq { white-space:normal; overflow-wrap:anywhere; }
-
 /* Leitura da tabela e dos campos por produto, sem tocar em cálculo/eventos. */
 table.items { table-layout:fixed; border-spacing:0 7px; }
 table.items th { font-size:9px; letter-spacing:.04em; padding:0 5px 5px; }
