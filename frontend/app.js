@@ -55,6 +55,12 @@ async function api(path, opts) {
   const r = await fetch(path, Object.assign({ method: "POST" }, opts || {}));
   return r;
 }
+// Cabeçalho HTTP só aceita Latin-1: um nome com travessão "–", aspas curvas
+// ou emoji fazia o fetch estourar ANTES de sair. Codificado, vira ASCII puro;
+// o servidor desfaz com unquote.
+function comNome(nome) {
+  return { "X-Filename": encodeURIComponent(nome || "") };
+}
 // Abre a subpasta onde o arquivo foi salvo (AF-pdf, CPS-excel, …); sem pasta, a base.
 function abrirPasta(pasta) {
   api("/api/abrir", { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pasta: pasta || "" }) });
@@ -1687,7 +1693,7 @@ async function importarCadastros() {
   setCadMassa("Importando a planilha…", "info");
   try {
     const buf = await file.arrayBuffer();
-    const res = await (await api("/api/importar_cadastros", { headers: { "X-Filename": file.name }, body: buf })).json();
+    const res = await (await api("/api/importar_cadastros", { headers: comNome(file.name), body: buf })).json();
     if (res.ok) {
       const p = [];
       if (res.fornecedor) p.push(`${res.fornecedor} fornecedor(es)`);
@@ -2188,7 +2194,7 @@ async function lerProposta(soltos) {
       if (arquivos.length > 1)
         setStatus(`Lendo parte ${lidas.length + 1} de ${arquivos.length}: ${f.name}…`, "info");
       const buf = await f.arrayBuffer();
-      const r = await api("/api/extrair", { headers: { "X-Filename": f.name }, body: buf });
+      const r = await api("/api/extrair", { headers: comNome(f.name), body: buf });
       const um = await r.json();
       if (!um.ok) { setStatus("Falha ao ler " + f.name + ": " + (um.erro || "?"), "erro"); return; }
       if (um.eh_ciena) { aplicarCienaEStatus(um); return; }   // CIENA não se combina
@@ -2330,7 +2336,7 @@ async function importarAF() {
   setStatus("Lendo a AF…", "info");
   try {
     const buf = await file.arrayBuffer();
-    const r = await api("/api/importar_af", { headers: { "X-Filename": file.name }, body: buf });
+    const r = await api("/api/importar_af", { headers: comNome(file.name), body: buf });
     const d = await r.json();
     if (!d.ok) { setStatus("Não consegui importar: " + (d.erro || "?"), "erro"); return; }
     aplicarAF(d);

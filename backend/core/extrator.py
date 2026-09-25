@@ -260,7 +260,11 @@ class ExtratorProposta:
             r"(PRPT\s*\d+[\w]*)",                                    # DATACOM
             # "N.º: BRU-OR-0172/25" no cabeçalho da carta de apresentação
             r"N\.?[ºo°]\s*:\s*([A-Z]{2,}[\w.\-/]*\d[\w.\-/]*)",
-            r"Proposta[:\s]+([A-Z0-9][\w.\-/]{2,22})",              # genérico (último)
+            r"Proposta[:\s]+([A-Z0-9][\w.\-/]{2,22})",              # genérico
+            # "ORÇAMENTO ... N°: 2026/001" (MEI): só número, com barra. Por
+            # último de propósito — "Nº:" solto é o rótulo mais vago da lista.
+            # O \b barra o "no" de "ANO: 2026/27".
+            r"\bN\.?[ºo°]\s*:\s*(\d{1,6}[/.\-]\d{1,6})\b",
         ])
         num = re.sub(r"\s{2,}", " ", num).strip(" .:-")
         # Número de proposta SEM dígito nenhum não é número: o padrão genérico
@@ -351,11 +355,29 @@ class ExtratorProposta:
             nome = nome[:m.end()].strip()
         return cls._ARTIGO.sub("", nome).strip(" .,:;-")
 
+    # MEI: a Receita registra a razão social como "<raiz do CNPJ> <NOME DO
+    # TITULAR>" — "12.345.678 MARIA EXEMPLO DA SILVA". Não há LTDA nem S.A.
+    # para a busca pela forma jurídica achar. O que torna a linha inconfundível
+    # é a raiz: ela TEM de ser a do CNPJ do próprio documento — senão qualquer
+    # linha que comece com número passaria por razão social.
+    _RAZAO_MEI = re.compile(
+        r"(?m)^[ \t]*(\d{2}\.\d{3}\.\d{3})[ \t]+([A-ZÀ-Ÿ][A-Za-zÀ-ÿ' ]*[A-Za-zÀ-ÿ])[ \t]*$")
+    # o título que o pdfplumber cola na mesma linha do nome, por estarem na
+    # mesma altura da folha: "... DOS SANTOS ORÇAMENTO"
+    _TITULO_NO_FIM = re.compile(
+        r"\s+(?:OR[ÇC]AMENTO|PROPOSTA(?:\s+COMERCIAL)?|COTA[ÇC][ÃA]O)$", re.I)
+
     def _fornecedor(self, t: str) -> str:
         for m in re.finditer(r"Raz[ãa]o Social[:\s]*([^\n]+)", t, re.I):
             nome = re.split(r"\s+CNPJ", m.group(1), flags=re.I)[0].strip(" .:-")
             if nome and "eletronet" not in nome.lower():
                 return nome
+        raizes = {re.sub(r"\D", "", c)[:8]
+                  for c in re.findall(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", t) if not _eh_eletronet(c)}
+        for m in self._RAZAO_MEI.finditer(t):
+            nome = self._TITULO_NO_FIM.sub("", m.group(2)).strip()
+            if re.sub(r"\D", "", m.group(1)) in raizes and len(nome.split()) >= 2:
+                return f"{m.group(1)} {nome.upper()}"
         # \b ANTES E DEPOIS da forma jurídica. Sem as fronteiras, e com re.I,
         # "SA" casava DENTRO de palavras comuns: em "PROPOSTA COMERCIAL Nº
         # 207.2026 - REVISADA" o trecho "REVI|SA|DA" satisfazia o padrão e a
@@ -1208,6 +1230,44 @@ class ExtratorProposta:
             it.preco_total_com = float_para_brl(v)
             itens.append(it)
         return itens
+
+    # "01 Deslocamento Extra 1 R$ 300,00": nº do item, descrição, quantidade e
+    # o TOTAL da linha — o unitário pode faltar. No orçamento de MEI a coluna
+    # "VALOR UNIT." quebra em duas linhas na folha ("R$" em cima, "300,00"
+    # embaixo) e o texto do produto fica só com o total.
+    _LINHA_ITEM_TOTAL = re.compile(
+        r"(?m)^[ \t]*(\d{1,3})[ \t]+(?P<desc>[^\n\d][^\n]*?)[ \t]+"
+        r"(?P<qtd>\d{1,6}(?:,\d{1,3})?)[ \t]+"
+        r"(?:R\$[ \t]*(?P<unit>\d{1,3}(?:\.\d{3})*,\d{2})[ \t]+)?"
+        r"R\$[ \t]*(?P<total>\d{1,3}(?:\.\d{3})*,\d{2})[ \t]*$")
+
+    def _itens_linha_total(self, t: str, total: str) -> list[ItemAF]:
+        """Itens de uma linha só, com o unitário tirado da CONTA quando falta.
+
+        Mesmo oráculo da composição: só entrega itens quando a soma das
+        linhas bate com o total anunciado — e, quando a linha traz o
+        unitário, quando quantidade × unitário dá o total dela.
+        """
+        alvo = brl_para_float(total) if total else None
+        if not alvo:
+            return []
+        itens, soma = [], 0.0
+        for m in self._LINHA_ITEM_TOTAL.finditer(t):
+            desc = re.sub(r"\s{2,}", " ", m.group("desc")).strip()
+            if not self._eh_descricao_de_item(desc):
+                continue
+            q, tot = brl_para_float(m.group("qtd")), brl_para_float(m.group("total"))
+            if not q or tot is None:
+                continue
+            unit = self._unit_do_total(m.group("total"), m.group("qtd"))
+            if m.group("unit"):
+                if abs(brl_para_float(m.group("unit")) * q - tot) >= 0.01:
+                    continue                  # a linha não fecha consigo mesma
+                unit = m.group("unit")
+            itens.append(ItemAF(descricao=desc, quantidade=m.group("qtd"),
+                                preco_unit_sem=unit, preco_total_com=m.group("total")))
+            soma += tot
+        return itens if itens and abs(soma - alvo) < 0.01 else []
 
     def _itens_com_ncm(self, t: str) -> list[ItemAF]:
         """Itens de proposta cuja tabela tem NCM e ENDEREÇO DE ENTREGA na MESMA
@@ -2345,6 +2405,9 @@ class ExtratorProposta:
         # dos produtos (o pdfplumber funde os itens quando não há fios).
         if not d.itens:
             d.itens = self._itens_orcamento(texto)
+        # LINHA COM SÓ O TOTAL (orçamento de MEI): a conta dá o unitário.
+        if not d.itens:
+            d.itens = self._itens_linha_total(texto, d.valor_total)
         # TABELA DE COMPOSIÇÃO (ARTEMIS): sem quantidade nem unitário, só
         # parcelas. Vem por último porque é a leitura mais pobre — e só entrega
         # alguma coisa quando a soma das parcelas bate com o total anunciado.

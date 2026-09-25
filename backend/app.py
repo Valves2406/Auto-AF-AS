@@ -16,6 +16,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import urllib.parse
 import uuid
 
@@ -218,7 +219,10 @@ def _saiu(cli: str) -> bool:
 
 
 def _sanitize(nome: str) -> str:
-    nome = "".join(c for c in (nome or "AF") if c.isalnum() or c in "._- ").strip()
+    # NFC: nome vindo do OneDrive/Mac traz "c" + cedilha solta (U+0327); sem
+    # isto a cedilha caía no filtro e "Orçamento" virava "Orcamento".
+    nome = unicodedata.normalize("NFC", nome or "AF")
+    nome = "".join(c for c in nome if c.isalnum() or c in "._- ").strip()
     return nome or "AF"
 
 
@@ -309,7 +313,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _upload_tmp(self, raw: bytes, prefixo: str, nome_padrao: str) -> str:
         """Grava o corpo do upload num arquivo temporário com o nome saneado."""
-        fn = _sanitize(self.headers.get("X-Filename", nome_padrao))
+        # o front manda o nome com encodeURIComponent (cabeçalho só aceita Latin-1)
+        fn = _sanitize(urllib.parse.unquote(self.headers.get("X-Filename", "") or nome_padrao))
         tmp = os.path.join(tempfile.gettempdir(), f"{prefixo}_{uuid.uuid4().hex}_{fn}")
         with open(tmp, "wb") as f:
             f.write(raw)

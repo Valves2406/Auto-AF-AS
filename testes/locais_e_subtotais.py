@@ -149,6 +149,17 @@ ok("e o município sai do fim do endereço",
    blocos[3]["municipio"] == "Entre Rios do Sul", repr(blocos[3]["municipio"]))
 
 print("\n== TODAS as filiais citadas, não só a primeira ==")
+# Catálogo FIXO. O real junta o modelo com o cadastro da equipe, que mora na
+# pasta de rede — e é lá que está a filial do PA (/0023-99). Com a VPN fora,
+# este teste falhava sem defeito nenhum no código: o que ele guarda é a
+# lógica (todas, na ordem da proposta), não o que o servidor tem hoje.
+import core.dados_eletronet as _de
+_de.locais_faturamento = lambda: [
+    {"uf": "RS", "cnpj": "03.052.673/0005-07"},
+    {"uf": "PR", "cnpj": "03.052.673/0006-98"},
+    {"uf": "BA", "cnpj": "03.052.673/0020-46"},
+    {"uf": "PA", "cnpj": "03.052.673/0023-99"},
+]
 fats = ex._faturamento_da_proposta(TEXTO, "48.128.759/0001-80")
 ufs = [f.get("uf") for f in fats]
 ok("as 4 filiais entram", len(fats) == 4, "%d: %s" % (len(fats), ufs))

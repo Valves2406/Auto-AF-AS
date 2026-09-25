@@ -57,6 +57,7 @@ SUITES = [
     ("locais_e_subtotais", "Subtotal de secao nao e produto; locais e filiais da proposta"),
     ("colunas_e_estacoes", "Coluna pelo cabecalho e quadro de estacoes como entrega"),
     ("arrastar_proposta", "Arrastar a proposta para a tela le o arquivo"),
+    ("orcamento_mei", "Orcamento de MEI e nome de arquivo fora do Latin-1"),
 ]
 
 
