@@ -41,3 +41,9 @@ desktop.ini
 backend/modelos/modelo_af.xlsm
 backend/modelos/modelo_as.xlsm
 backend/modelos/modelo_cpm.xlsx
+
+# Endereço e chave do banco da equipe (Supabase). A chave é a publicável — só
+# lê, inclui e altera, e as regras estão no banco —, mas num repositório
+# público ela convidaria qualquer um a mexer no cadastro do setor.
+banco.json
+banco_cache.json

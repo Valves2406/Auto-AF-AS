@@ -81,6 +81,15 @@ def preparar():
         except Exception as exc:
             LOG.warning("não consegui migrar os dados do usuário: %s", exc)
 
+        # Banco da equipe: o que o arquivo de cadastros desta máquina tem e o
+        # banco ainda não, vai — uma vez por arquivo (depois ele fica carimbado).
+        try:
+            from core.dados_eletronet import levar_para_o_banco
+            if levar_para_o_banco().get("incluidos"):
+                engine.dados()               # as listas já com o que acabou de entrar
+        except Exception as exc:
+            LOG.warning("não consegui levar os cadastros para o banco: %s", exc)
+
         # Varre as lições aprendidas e descarta as que não passam nas regras
         # atuais — a versão antiga guardava pedaços de prosa que preenchiam o
         # campo errado. Roda uma vez por abertura e é barato (dezenas de itens).

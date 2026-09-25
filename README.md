@@ -59,6 +59,7 @@ backend/              tudo que roda em Python
     caminhos.py       o que é RECURSO (só leitura, vai no .exe) x o que é DADO do usuário
     modelos.py        ItemAF, DadosProposta, moedas, valor por extenso em PT-BR
     dados_eletronet   catálogo (fornecedores, filiais, POPs), cadastro do usuário, migrações
+    banco.py          os três cadastros no banco da equipe (Supabase), com cópia local
     extrator.py       lê a proposta: PDF de texto, seções numeradas, tabelas, OCR
     extrator_ciena.py o Excel do DDPTool da CIENA, que tem formato próprio
     aprendizado.py    aprende com as SUAS correções onde cada campo fica na proposta
@@ -79,7 +80,7 @@ frontend/             tudo que o navegador carrega
   imagens/            marca, faixa, símbolo, ícone e o logo da INTERFACE
 
 packaging/            AutoAF.spec — receita do PyInstaller
-testes/               39 suítes — ver "Testes" abaixo
+testes/               40 suítes — ver "Testes" abaixo
 ```
 
 Uma armadilha ao mexer nisto: `core/caminhos.py` acha a raiz do projeto subindo
@@ -104,6 +105,27 @@ A escrita é atômica, com cópia `.bak`; se o JSON corromper, o app usa o `.bak
 
 **Setor inteiro no mesmo cadastro:** aba Cadastros → apontar para uma pasta de
 rede. Todos passam a ler e gravar o mesmo arquivo, com trava entre processos.
+
+### Banco da equipe (fornecedores, filiais de faturamento e POPs)
+
+Com o banco configurado, esses **três cadastros** vêm de um banco Supabase, e o
+que alguém cadastra aparece para o setor inteiro. **AF, AS e propostas nunca vão
+para o banco.** Padrões, agenda e lições continuam no JSON acima.
+
+- A máquina acha o banco em `GERADORAF_BANCO_URL` + `GERADORAF_BANCO_CHAVE`, no
+  `config.json` (chave `"banco"`) ou num `banco.json` ao lado do app ou na pasta
+  do setor — `{"url": "https://<projeto>.supabase.co", "chave": "sb_publishable_..."}`.
+  Achado no `banco.json`, é copiado para o `config.json`.
+- A chave publicável só **lê, inclui e altera**: apagar não existe para ela, e
+  toda alteração fica em `privado.historico`, que a API não enxerga. Remover na
+  tela = ocultar (o ↩ restaura). Mesmo assim, `banco.json` **não vai para o
+  repositório** (está no `.gitignore`).
+- Sem internet, as listas saem da cópia `%APPDATA%\AutoAF\banco_cache.json`;
+  sem cópia, do catálogo do modelo. Gravar exige conexão — nada fica pendente.
+- Na 1ª abertura com banco, o arquivo de cadastros da máquina é levado para lá
+  **uma vez** (tabela vazia: tudo; senão, só o que o banco não tem) e carimbado.
+- Os testes nunca usam o banco de verdade: `rodar.py` liga `GERADORAF_SEM_BANCO`
+  e um script da pasta `testes/` ignora o `config.json`.
 
 O arquivo tem **versão de esquema** e um migrador (`dados_eletronet.migrar`).
 Mudou o formato? Suba `ESQUEMA_DADOS` e escreva a migração — ver `ATUALIZACAO.md`.
@@ -187,7 +209,9 @@ COM, Edge headless, OCR, anexo da proposta, lições aplicadas) fica registrado.
 | variável | para quê |
 |---|---|
 | `GERADORAF_NAVEGADOR` | força o navegador (`edge`, `chrome`, `firefox`, …) |
-| `GERADORAF_DADOS` | redireciona o JSON de cadastros — usado pelos testes |
+| `GERADORAF_DADOS` | redireciona o JSON de cadastros — usado pelos testes (desliga o banco) |
+| `GERADORAF_SEM_BANCO=1` | ignora o banco da equipe: listas do modelo + JSON |
+| `GERADORAF_BANCO_URL` / `_CHAVE` | aponta o banco da equipe sem mexer no `config.json` |
 | `GERADORAF_RAIZ` | finge outra pasta de dados — simula o app instalado na rede |
 | `GERADORAF_DOCLING=0` | desliga o Docling |
 | `GERADORAF_LOG` | muda o destino do log |

@@ -55,6 +55,8 @@ def dados() -> dict:
         "versao": de.VERSAO_APP,
         "pasta_dados": os.path.dirname(de.USER_JSON),
         "dados": de.onde_estao_os_dados(),
+        # banco da equipe: configurado? respondendo? de quando é a cópia em uso?
+        "banco": de._banco.estado(),
     }
 
 

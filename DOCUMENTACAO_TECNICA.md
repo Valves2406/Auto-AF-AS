@@ -46,7 +46,8 @@ GeradorAF/
 │  │  ├─ html_render.py    # prévia/estilo Visual (AF e CPM) em HTML + leitura de AF em Excel
 │  │  ├─ leitor_af.py      # lê de volta a AF/AS em PDF (visual ou modelo Excel)
 │  │  ├─ modelos.py        # DadosProposta, ItemAF, MOEDAS, valor_por_extenso
-│  │  └─ dados_eletronet.py # catálogo (do .xlsm) + cadastros do usuário (JSON) + import em massa
+│  │  ├─ banco.py          # fornecedores/faturamento/POPs no Supabase (API HTTPS + cópia local)
+│  │  └─ dados_eletronet.py # catálogo (do .xlsm ou do banco) + cadastros do usuário (JSON) + import em massa
 │  └─ modelos/ (modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx, eletronet_logo.jpeg)
 ├─ frontend/ (index.html, app.css, app.js, fontes/, imagens/)
 ├─ saída gerador/          # documentos gerados

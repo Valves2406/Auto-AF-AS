@@ -2,6 +2,9 @@
 dados_eletronet.py — listas de apoio lidas do template oficial empacotado
 (`backend/modelos/modelo_af.xlsm`): catálogo de fornecedores, filiais de faturamento e
 POPs de entrega. Para atualizar, basta trocar o .xlsm.
+
+Com o banco da equipe configurado (core/banco.py), esses três cadastros vêm de
+lá — uma lista só para o setor inteiro; o .xlsm fica como reserva sem conexão.
 """
 
 from __future__ import annotations
@@ -12,10 +15,12 @@ import os
 import re
 import shutil
 import unicodedata
+from datetime import datetime
 from functools import lru_cache
 
 from openpyxl import load_workbook
 
+from . import banco as _banco
 from .log import get_logger
 
 LOG = get_logger("dados")
@@ -403,6 +408,14 @@ def adicionar_usuario(tipo: str, registro: dict) -> dict:
     if not chave:
         raise ValueError(f"tipo de cadastro inválido: {tipo!r}")
     registro = {k: (str(v).strip() if v is not None else "") for k, v in (registro or {}).items()}
+    if _banco.configuracao():
+        _banco.esquecer(chave)             # a checagem de duplicata vê o que a equipe acabou de pôr
+        if _ja_existe(chave, registro, _visiveis(chave)):
+            raise ValueError("Este cadastro já existe (mesmo nome/identificadores) — nada foi salvo.")
+        _no_banco(lambda: _banco.incluir(chave, [_linha_do_banco(chave, registro)]))
+        LOG.info("cadastro incluído no banco (%s): %s", chave,
+                 registro.get("empresa") or registro.get("razao_social") or registro.get("nome") or "?")
+        return {}
     registro["origem"] = "usuario"
     with _editando() as (d, alvo):
         # a checagem de duplicata TAMBÉM entra na trava: fora dela, dois apps
@@ -567,6 +580,15 @@ def lembrar_pessoas(gestores: dict) -> None:
 
 def ocultos() -> dict:
     """Itens do catálogo ocultados pelo usuário (para exibir/restaurar)."""
+    if _banco.configuracao():
+        out = {}
+        for chave in ("fornecedores", "faturamento", "pops"):
+            b = _do_banco(chave)
+            if b is None:
+                return _usuario().get("ocultos", {})
+            if b[1]:
+                out[chave] = [{k: e[k] for k in _IDS[chave]} | {"_id": e["_id"]} for e in b[1]]
+        return out
     return _usuario().get("ocultos", {})
 
 
@@ -578,6 +600,12 @@ def remover_usuario(tipo: str, registro: dict) -> dict:
     if not chave:
         raise ValueError(f"tipo de cadastro inválido: {tipo!r}")
     registro = registro or {}
+    if _banco.configuracao():             # no banco nada é apagado: oculta, e o ↩ restaura
+        _banco.esquecer(chave)
+        alvos = _no_banco(lambda: _achar_no_banco(chave, registro))
+        if alvos:
+            _no_banco(lambda: _banco.alterar(chave, [e["_id"] for e in alvos], {"oculto": True}))
+        return {"removidos": 0, "ocultados": len(alvos)}
     ids = [k for k in _IDS.get(chave, ()) if str(registro.get(k, "")).strip()]
     if not ids:
         return {"removidos": 0, "ocultados": 0}
@@ -606,6 +634,19 @@ def atualizar_usuario(tipo: str, id_antigo: dict, novo: dict) -> dict:
     if not chave:
         raise ValueError(f"tipo de cadastro inválido: {tipo!r}")
     id_antigo = id_antigo or {}
+    if _banco.configuracao():             # no banco, todo item é editável — inclusive os do modelo
+        _banco.esquecer(chave)
+        alvos = _no_banco(lambda: _achar_no_banco(chave, id_antigo))
+        if not alvos:
+            return {"atualizados": 0}
+        campos = _linha_do_banco(chave, novo)
+        outros = [e for e in _visiveis(chave) if e.get("_id") != alvos[0]["_id"]]
+        if _ja_existe(chave, campos, outros):
+            raise ValueError("Já existe outro cadastro com estes dados — nada foi alterado.")
+        _no_banco(lambda: _banco.alterar(chave, alvos[0]["_id"], campos))
+        LOG.info("cadastro alterado no banco (%s): %s", chave,
+                 campos.get("empresa") or campos.get("razao_social") or campos.get("nome") or "?")
+        return {"atualizados": 1}
     ids = [k for k in _IDS.get(chave, ()) if str(id_antigo.get(k, "")).strip()]
     if not ids:
         return {"atualizados": 0}
@@ -629,6 +670,12 @@ def restaurar_usuario(tipo: str, registro: dict) -> int:
     if not chave:
         raise ValueError(f"tipo de cadastro inválido: {tipo!r}")
     registro = registro or {}
+    if _banco.configuracao():
+        _banco.esquecer(chave)
+        alvos = _no_banco(lambda: _achar_no_banco(chave, registro, ocultos=True))
+        if alvos:
+            _no_banco(lambda: _banco.alterar(chave, [e["_id"] for e in alvos], {"oculto": False}))
+        return len(alvos)
     ids = [k for k in _IDS.get(chave, ()) if str(registro.get(k, "")).strip()]
     with _editando() as (d, alvo):
         ocs = d.get("ocultos", {}).get(chave, [])
@@ -661,9 +708,169 @@ def _wb():
 
 # Cada catálogo = base lida do template (cacheada) + cadastros do usuário
 # (lidos a cada chamada, p/ que um novo cadastro apareça sem reiniciar o app).
+# Com o BANCO DA EQUIPE configurado, a lista inteira vem de lá (ver abaixo).
 def _campos(modelo: dict, reg: dict) -> dict:
     return {k: _txt(reg.get(k, modelo.get(k, ""))) for k in modelo} | {
         "origem": reg.get("origem", "usuario")}
+
+
+# Os campos de cada cadastro, na ordem das listas.
+_MODELOS = {
+    "fornecedores": ("apelido", "empresa", "endereco", "cep", "cnpj", "insc_est", "garantia"),
+    "faturamento": ("uf", "razao_social", "cnpj", "endereco", "cep", "cnpj2", "insc_est", "insc_mun"),
+    "pops": ("nome", "sigla", "endereco", "municipio", "uf", "maps", "latitude", "longitude", "cedente"),
+}
+
+
+def _lista_local(chave: str) -> list[dict]:
+    """A lista de sempre: catálogo do .xlsm + cadastros do arquivo − ocultos."""
+    modelo = dict.fromkeys(_MODELOS[chave], "")
+    base = {"fornecedores": _fornecedores_base, "faturamento": _faturamento_base,
+            "pops": _pops_base}[chave]()
+    out = list(base) + [_campos(modelo, f) for f in _usuario().get(chave, [])]
+    if chave == "fornecedores":
+        out.sort(key=lambda d: (d.get("apelido") or d.get("empresa") or "").upper())
+    elif chave == "pops":
+        out.sort(key=lambda d: (d.get("nome") or "").upper())
+    return _ocultar(_preferir_usuario(out, chave), chave)
+
+
+def _ocultos_locais(chave: str) -> list[dict]:
+    """Os itens do catálogo que ESTE arquivo ocultou, inteiros (não só os ids)."""
+    ocs = _usuario().get("ocultos", {}).get(chave, [])
+    if not ocs:
+        return []
+    modelo = dict.fromkeys(_MODELOS[chave], "")
+    base = {"fornecedores": _fornecedores_base, "faturamento": _faturamento_base,
+            "pops": _pops_base}[chave]()
+    todos = list(base) + [_campos(modelo, f) for f in _usuario().get(chave, [])]
+    full, ambig = _IDS.get(chave, ()), _ambiguas(todos, chave)
+    return [e for e in base
+            if any(_casa(e, o, [k for k in full if str(o.get(k, "")).strip()], chave, ambig)
+                   for o in ocs)]
+
+
+# ============================ BANCO DA EQUIPE ============================
+# Com o banco configurado (core/banco.py), os três cadastros vêm DE LÁ: o que
+# era catálogo do modelo e o que a equipe acrescentou viram uma lista só, igual
+# em todas as máquinas. Nada é apagado — "remover" é ocultar, e o ↩ restaura.
+# Sem banco, ou sem conexão E sem cópia local, vale o de sempre (.xlsm + JSON).
+def _do_banco(chave: str):
+    """(visíveis, ocultos) do banco no formato das listas do app, ou None."""
+    if not _banco.configuracao():
+        return None
+    try:
+        linhas = _banco.linhas(chave)
+    except _banco.Indisponivel as exc:
+        LOG.warning("banco indisponível e sem cópia local (%s) — usando o catálogo do modelo", exc)
+        return None
+    if not linhas:        # tabela ainda não semeada (nada se apaga pelo app): vale o arquivo
+        return None
+    vis, ocs = [], []
+    for r in linhas:
+        reg = {k: _txt(r.get(k)) for k in _MODELOS[chave]} | {"origem": "banco", "_id": r.get("id")}
+        (ocs if r.get("oculto") else vis).append(reg)
+    return vis, ocs
+
+
+def _linha_do_banco(chave: str, registro: dict) -> dict:
+    return {k: str((registro or {}).get(k) or "").strip() for k in _MODELOS[chave]}
+
+
+def _no_banco(acao):
+    """Roda uma gravação no banco e traduz a falha numa mensagem para a tela."""
+    try:
+        return acao()
+    except _banco.Indisponivel as exc:
+        raise ValueError(f"Sem conexão com o banco de cadastros ({exc}) — nada foi salvo. "
+                         "Confira a internet e tente de novo.") from exc
+    except _banco.Recusado as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _achar_no_banco(chave: str, registro: dict, ocultos: bool = False) -> list[dict]:
+    """Os itens do banco que o registro da tela aponta: pelo número do banco
+    quando a tela o mandou, senão campo a campo como no arquivo."""
+    b = _do_banco(chave)
+    if b is None:
+        raise _banco.Indisponivel(_banco.estado().get("erro") or "sem conexão com o banco")
+    lista = b[1] if ocultos else b[0]
+    rid = str((registro or {}).get("_id") or "").strip()
+    if rid:
+        return [e for e in lista if str(e.get("_id")) == rid]
+    ids = [k for k in _IDS.get(chave, ()) if str((registro or {}).get(k, "")).strip()]
+    return [e for e in lista if _casa(e, registro, ids)] if ids else []
+
+
+def levar_para_o_banco() -> dict:
+    """Leva para o banco, UMA VEZ, o que o arquivo de cadastros em uso tem.
+
+    Tabela vazia no banco: vai a lista inteira que esta máquina enxerga
+    (catálogo do modelo + cadastros − ocultos), e os ocultos vão ocultos — o ↩
+    continua podendo restaurá-los. Tabela já semeada: entra só o que o banco
+    NÃO tem; o que já existe lá não é trocado (o banco pode ter sido corrigido
+    depois, e um arquivo antigo não pode desfazer a correção). As diferenças
+    ficam no log.
+
+    Ao terminar, carimba o arquivo — na próxima abertura não faz nada. Se a
+    pasta de rede estiver fora do ar, ou a conexão cair no meio, não carimba:
+    na próxima abertura completa o que faltou, sem duplicar o que já foi.
+    """
+    cfg = _banco.configuracao()
+    if not cfg or not os.path.exists(USER_JSON):
+        return {}
+    d = _usuario()
+    if not d or (d.get("banco") or {}).get("projeto") == cfg["url"]:
+        return {}
+    _banco.esquecer()
+    res = {"incluidos": 0, "ocultados": 0, "ja_estavam": 0, "diferentes": [], "semeadas": []}
+    for chave in _banco.TABELAS:
+        try:
+            atuais = _banco.linhas(chave)
+        except _banco.Indisponivel:
+            return {}
+        if _banco.estado().get("online") is False:
+            return {}                  # só há a cópia local: não dá para comparar
+        if not atuais:
+            vis = [_linha_do_banco(chave, e) for e in _lista_local(chave)]
+            ocs = [_linha_do_banco(chave, e) for e in _ocultos_locais(chave)]
+            _banco.incluir(chave, vis)
+            if ocs:        # a chave do app só inclui visível: entra e oculta em seguida
+                feitos = _banco.incluir(chave, ocs)
+                _banco.alterar(chave, [r["id"] for r in feitos], {"oculto": True})
+            res["incluidos"] += len(vis)
+            res["ocultados"] += len(ocs)
+            res["semeadas"].append(chave)
+            continue
+        no_banco = [{k: _txt(r.get(k)) for k in _MODELOS[chave]} for r in atuais]
+        ambig = _ambiguas(no_banco, chave)
+        novos = []
+        for e in d.get(chave) or []:
+            reg = _linha_do_banco(chave, e)
+            ids = [k for k in _IDS.get(chave, ()) if reg.get(k)]
+            if not ids:
+                continue
+            iguais = [b for b in no_banco + novos if _casa(b, reg, ids, chave, ambig)]
+            if not iguais:
+                novos.append(reg)
+            elif all(_norm_id(iguais[0].get(k)) == _norm_id(reg.get(k)) for k in _MODELOS[chave]):
+                res["ja_estavam"] += 1
+            else:
+                res["diferentes"].append(reg.get("empresa") or reg.get("razao_social") or reg.get("nome"))
+        _banco.incluir(chave, novos)
+        res["incluidos"] += len(novos)
+    if res["diferentes"]:
+        LOG.info("ao levar o arquivo para o banco, vale o do banco para: %s",
+                 "; ".join(res["diferentes"]))
+    try:
+        with _editando() as (dd, alvo):
+            dd["banco"] = {"projeto": cfg["url"], "levado_em": datetime.now().isoformat(timespec="seconds"),
+                           "incluidos": res["incluidos"]}
+            alvo["salvar"] = True
+    except OSError as exc:
+        LOG.warning("levei os cadastros ao banco mas não consegui carimbar o arquivo: %s", exc)
+    LOG.info("cadastros levados ao banco: %s", {k: v for k, v in res.items() if k != "diferentes"})
+    return res
 
 
 @lru_cache(maxsize=1)
@@ -684,11 +891,10 @@ def _fornecedores_base() -> list[dict]:
 
 
 def catalogo_fornecedores() -> list[dict]:
-    modelo = {"apelido": "", "empresa": "", "endereco": "", "cep": "", "cnpj": "",
-              "insc_est": "", "garantia": ""}
-    out = list(_fornecedores_base()) + [_campos(modelo, f) for f in _usuario().get("fornecedores", [])]
-    out.sort(key=lambda d: (d.get("apelido") or d.get("empresa") or "").upper())
-    return _ocultar(_preferir_usuario(out, "fornecedores"), "fornecedores")
+    b = _do_banco("fornecedores")
+    if b is not None:
+        return sorted(b[0], key=lambda d: (d.get("apelido") or d.get("empresa") or "").upper())
+    return _lista_local("fornecedores")
 
 
 @lru_cache(maxsize=1)
@@ -710,10 +916,8 @@ def _faturamento_base() -> list[dict]:
 
 
 def locais_faturamento() -> list[dict]:
-    modelo = {"uf": "", "razao_social": "", "cnpj": "", "endereco": "", "cep": "",
-              "cnpj2": "", "insc_est": "", "insc_mun": ""}
-    out = list(_faturamento_base()) + [_campos(modelo, f) for f in _usuario().get("faturamento", [])]
-    return _ocultar(_preferir_usuario(out, "faturamento"), "faturamento")
+    b = _do_banco("faturamento")
+    return b[0] if b is not None else _lista_local("faturamento")
 
 
 @lru_cache(maxsize=1)
@@ -735,11 +939,10 @@ def _pops_base() -> list[dict]:
 
 
 def pops_entrega() -> list[dict]:
-    modelo = {"nome": "", "sigla": "", "endereco": "", "municipio": "", "uf": "",
-              "maps": "", "latitude": "", "longitude": "", "cedente": ""}
-    out = list(_pops_base()) + [_campos(modelo, p) for p in _usuario().get("pops", [])]
-    out.sort(key=lambda d: (d.get("nome") or "").upper())
-    return _ocultar(_preferir_usuario(out, "pops"), "pops")
+    b = _do_banco("pops")
+    if b is not None:
+        return sorted(b[0], key=lambda d: (d.get("nome") or "").upper())
+    return _lista_local("pops")
 
 
 # ============================ IMPORTAÇÃO EM MASSA ============================
@@ -816,6 +1019,7 @@ def importar_cadastros_xlsx(caminho: str) -> dict:
     res = {"fornecedor": 0, "faturamento": 0, "pop": 0,
            "ignoradas": 0, "duplicadas": 0, "erros": []}
     lotes: dict = {}
+    _banco.esquecer()                  # compara com o que o banco tem agora, não há 3 min
     base = {chave: _visiveis(chave) for chave in ("fornecedores", "faturamento", "pops")}
     try:
         for ws in wb.worksheets:
@@ -850,7 +1054,10 @@ def importar_cadastros_xlsx(caminho: str) -> dict:
                 res[tipo] += 1
     finally:
         wb.close()
-    if any(lotes.values()):                                 # grava tudo de uma vez
+    if any(lotes.values()) and _banco.configuracao():       # um pedido por tipo
+        for chave, regs in lotes.items():
+            _no_banco(lambda: _banco.incluir(chave, [_linha_do_banco(chave, r) for r in regs]))
+    elif any(lotes.values()):                               # grava tudo de uma vez
         with _editando() as (d, alvo):                      # trava: não perde o que outro app gravou
             for chave, regs in lotes.items():
                 d.setdefault(chave, []).extend(regs)

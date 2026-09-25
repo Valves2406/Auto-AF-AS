@@ -19,6 +19,9 @@ import time
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 AQUI = os.path.dirname(os.path.abspath(__file__))
+# Nenhuma suíte fala com o banco da equipe de verdade (nem os processos que elas
+# abrem): quem precisa de banco sobe um de mentira e o aponta pelas variáveis.
+os.environ["GERADORAF_SEM_BANCO"] = "1"
 
 SUITES = [
     ("correcoes", "Textos do CPM e cabeÃ§alho das duas folhas do Excel"),
@@ -60,6 +63,7 @@ SUITES = [
     ("orcamento_mei", "Orcamento de MEI e nome de arquivo fora do Latin-1"),
     ("ler_af_ida_e_volta", "Ler a AF de volta: o que o app escreveu volta igual"),
     ("leitor_af_regras", "As regras do leitor de AF nos casos que ja quebraram"),
+    ("banco_da_equipe", "Cadastros no banco da equipe, com e sem internet"),
 ]
 
 

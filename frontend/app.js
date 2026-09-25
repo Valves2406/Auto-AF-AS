@@ -1631,7 +1631,26 @@ function atualizarStats() {
   poe("stForn", DATA.fornecedores.length);
   poe("stFat", DATA.faturamento.length);
   poe("stPop", DATA.pops.length);
+  // De onde vêm os cadastros: do banco da equipe (e se ele está respondendo)
+  // ou do arquivo desta máquina, como antes do banco.
+  const txt = $("cadOnde"), b = DATA.banco || {};
+  if (!txt) return;
+  if (!b.configurado) {
+    txt.innerHTML = "O que você cadastra aqui fica salvo na sua máquina e passa a aparecer nas listas da aba " +
+      "<b>Gerar AF/AS</b>. O modelo oficial (.xlsm) nunca é alterado.";
+  } else if (b.online === false) {
+    const quando = b.copia_em ? new Date(b.copia_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+    txt.innerHTML = "<b>Sem conexão com o banco da equipe.</b> " +
+      (quando ? `As listas são a cópia de ${quando}. ` : "As listas são o catálogo do modelo oficial. ") +
+      "Cadastrar e editar voltam a funcionar quando a conexão voltar.";
+  } else {
+    txt.innerHTML = "Os cadastros ficam no <b>banco da equipe</b>: o que você salva aqui aparece para todos " +
+      "nas listas da aba <b>Gerar AF/AS</b>. Remover só oculta — dá para restaurar.";
+  }
+  txt.classList.toggle("cad-onde-off", !!b.configurado && b.online === false);
 }
+// No banco, o item leva o número dele: editar e ocultar acertam aquele e só ele.
+const comIdBanco = (x, ids) => (x && x._id != null ? { ...ids, _id: x._id } : ids);
 
 // ---- avisos de duplicata: o mesmo site cadastrado duas vezes vira dois POPs
 //      "incompletos", cada um com metade da informação.
@@ -1835,13 +1854,13 @@ async function importarCadastros() {
 const _CAD_CFG = {
   fornecedor: { btn: "btnSalvarForn",
     campos: { nf_apelido: "apelido", nf_empresa: "empresa", nf_cnpj: "cnpj", nf_ie: "insc_est", nf_endereco: "endereco", nf_cep: "cep", nf_garantia: "garantia" },
-    ids: x => ({ empresa: x.empresa, apelido: x.apelido, cnpj: x.cnpj }) },
+    ids: x => comIdBanco(x, { empresa: x.empresa, apelido: x.apelido, cnpj: x.cnpj }) },
   faturamento: { btn: "btnSalvarFat",
     campos: { nl_uf: "uf", nl_razao: "razao_social", nl_cnpj: "cnpj", nl_cnpj2: "cnpj2", nl_endereco: "endereco", nl_cep: "cep", nl_ie: "insc_est", nl_im: "insc_mun" },
-    ids: x => ({ razao_social: x.razao_social, uf: x.uf, cnpj: x.cnpj }) },
+    ids: x => comIdBanco(x, { razao_social: x.razao_social, uf: x.uf, cnpj: x.cnpj }) },
   pop: { btn: "btnSalvarPop",
     campos: { np_nome: "nome", np_sigla: "sigla", np_endereco: "endereco", np_municipio: "municipio", np_uf: "uf", np_maps: "maps", np_lat: "latitude", np_lon: "longitude", np_cedente: "cedente" },
-    ids: x => ({ nome: x.nome, sigla: x.sigla, municipio: x.municipio }) },
+    ids: x => comIdBanco(x, { nome: x.nome, sigla: x.sigla, municipio: x.municipio }) },
 };
 const _editCad = { fornecedor: null, faturamento: null, pop: null };
 const _btnCadTxt = { fornecedor: "💾 Salvar fornecedor", faturamento: "💾 Salvar faturamento", pop: "💾 Salvar POP" };
@@ -1920,13 +1939,13 @@ function escapeAttr(s) { return escapeHtml(s).replace(/'/g, "&#39;"); }
 const _EX = [
   { tipo: "fornecedor", chave: "fornecedores", list: "listForn", busca: "buscaForn", oc: "ocForn", count: "countForn",
     arr: () => DATA.fornecedores, label: f => f.apelido ? `${f.apelido} — ${f.empresa}` : f.empresa,
-    ids: f => ({ empresa: f.empresa, apelido: f.apelido, cnpj: f.cnpj }) },
+    ids: f => comIdBanco(f, { empresa: f.empresa, apelido: f.apelido, cnpj: f.cnpj }) },
   { tipo: "faturamento", chave: "faturamento", list: "listFat", busca: "buscaFat", oc: "ocFat", count: "countFat",
     arr: () => DATA.faturamento, label: l => `${l.uf} — ${l.razao_social}`,
-    ids: l => ({ razao_social: l.razao_social, uf: l.uf, cnpj: l.cnpj }) },
+    ids: l => comIdBanco(l, { razao_social: l.razao_social, uf: l.uf, cnpj: l.cnpj }) },
   { tipo: "pop", chave: "pops", list: "listPop", busca: "buscaPop", oc: "ocPop", count: "countPop",
     arr: () => DATA.pops, label: p => (p.sigla ? `${p.nome} (${p.sigla})` : p.nome) + (p.municipio ? ` — ${p.municipio}/${p.uf || ""}` : ""),
-    ids: p => ({ nome: p.nome, sigla: p.sigla, municipio: p.municipio }) },
+    ids: p => comIdBanco(p, { nome: p.nome, sigla: p.sigla, municipio: p.municipio }) },
 ];
 function renderExcluir() {
   if (!DATA) return;
@@ -1936,12 +1955,14 @@ function renderExcluir() {
     const contador = $(c.count);
     if (contador) contador.textContent = `${arr.length} ${filtro ? "encontrado" : "ativos"}`;
     $(c.list).innerHTML = arr.length ? arr.map(x => {
-      const u = x.origem === "usuario";
+      const u = x.origem === "usuario", doBanco = x.origem === "banco";
       // Editar vale p/ TODO item, inclusive os do modelo oficial: o .xlsm não é
       // alterado — a versão do catálogo é ocultada e a sua entra no lugar (o ↩
-      // aqui embaixo devolve a original quando quiser).
-      const acaoEditar = u ? "Editar cadastro" : "Corrigir este item do modelo oficial";
-      const acaoRemover = u ? "Apagar cadastro seu" : "Ocultar item do catálogo";
+      // aqui embaixo devolve a original quando quiser). No banco da equipe todo
+      // item é editável direto, e remover é sempre ocultar.
+      const acaoEditar = u || doBanco ? "Editar cadastro" : "Corrigir este item do modelo oficial";
+      const acaoRemover = doBanco ? "Ocultar para toda a equipe (dá para restaurar)"
+        : u ? "Apagar cadastro seu" : "Ocultar item do catálogo";
       const edit = `<button class="editcad" data-tipo="${c.tipo}" data-item='${escapeAttr(JSON.stringify(x))}' title="${acaoEditar}" aria-label="${acaoEditar}">✏️</button>`;
       return `<div class="cad-row"><span>${escapeHtml(c.label(x))}${u ? ' <i class="bdg">seu</i>' : ''}</span>` +
         `<span class="cad-acts">${edit}<button class="delcad" data-tipo="${c.tipo}" data-ids='${escapeAttr(JSON.stringify(c.ids(x)))}' title="${acaoRemover}" aria-label="${acaoRemover}">${u ? '🗑' : '🚫'}</button></span></div>`;
@@ -1949,7 +1970,7 @@ function renderExcluir() {
     const ocs = (DATA.ocultos && DATA.ocultos[c.chave]) || [];
     $(c.oc).innerHTML = ocs.length
       ? '<div class="cad-h">Ocultos — clique ↩ para restaurar:</div>' + ocs.map(o =>
-          `<div class="cad-row oc"><span>${escapeHtml(Object.values(o).filter(Boolean).join(" · "))}</span>` +
+          `<div class="cad-row oc"><span>${escapeHtml(Object.entries(o).filter(([k, v]) => k !== "_id" && v).map(([, v]) => v).join(" · "))}</span>` +
           `<button class="restcad" data-tipo="${c.tipo}" data-ids='${escapeAttr(JSON.stringify(o))}' title="Restaurar" aria-label="Restaurar item">↩</button></div>`).join("")
       : "";
   }
@@ -1962,7 +1983,10 @@ function bindExcluir() {
     const del = e.target.closest(".delcad"), rest = e.target.closest(".restcad");
     if (!del && !rest) return;
     const b = del || rest;
-    if (del && !confirm("Remover/ocultar este item da sua lista? (o modelo .xlsm não é alterado)")) return;
+    const pergunta = DATA.banco && DATA.banco.configurado
+      ? "Ocultar este item? Ele some das listas de toda a equipe (dá para restaurar aqui embaixo)."
+      : "Remover/ocultar este item da sua lista? (o modelo .xlsm não é alterado)";
+    if (del && !confirm(pergunta)) return;
     const tipo = b.dataset.tipo, dados = JSON.parse(b.dataset.ids);
     try {
       const r = await api("/api/" + (del ? "remover" : "restaurar"), { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo, dados }) });
