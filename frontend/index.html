@@ -70,6 +70,18 @@
 <text x="720" y="410" font-family="DM Sans, Segoe UI, system-ui, sans-serif" font-size="245" font-weight="700" letter-spacing="-8" fill="url(#afasGText)">Auto AF/AS</text>
 <text x="1335" y="565" font-family="DM Sans, Segoe UI, system-ui, sans-serif" font-size="105" font-weight="500" letter-spacing="-1.5" fill="url(#afasGText)">by eletronet</text>
     </symbol>
+    <!-- ÍCONES: um jogo só, em traço, desenhado uma vez e reaproveitado com
+         <use>. Os emojis que estavam nos botões mudavam de cara de uma máquina
+         para outra (e de cor no tema claro); traço herda a cor do texto. -->
+    <symbol id="i-ler" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M12 11v6m-3-3 3 3 3-3"/></symbol>
+    <symbol id="i-importar" viewBox="0 0 24 24"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5M12 3v11m-4-4 4 4 4-4"/></symbol>
+    <symbol id="i-limpar" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-excel" viewBox="0 0 24 24"><path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M4 15h16M10 4v16"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 14l2 2 4-4"/></symbol>
+    <symbol id="i-tema" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></symbol>
+    <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-dobra" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   </svg>
   <!-- Tela de carregamento: fica na frente até o motor terminar de aquecer
        (catálogo, leitura de planilha/PDF, montagem de documento). -->
@@ -104,58 +116,23 @@
     </div>
   </div>
 
+  <!-- BARRA DO TOPO: só o que vale para o app inteiro — a marca, os quatro
+       lugares do app e o tema. As ações de cada documento moravam aqui e
+       disputavam largura com a marca e as abas (a barra quebrava em duas
+       linhas em notebook); agora cada documento tem a sua barra, logo acima
+       do formulário a que pertence. -->
   <header class="topbar">
-    <!-- Marca e contexto ficam no mesmo bloco: a barra passa a funcionar como
-         uma bancada de trabalho, e não como uma sequência de botões soltos. -->
     <div class="marca">
-      <svg class="faixa" role="img" aria-label="Auto AF/AS — by Eletronet · Axia Energia"><use href="#marcaAFAS"/></svg>
-      <span class="marca-legenda">Plataforma de documentos</span>
-    </div>
-    <div class="titles">
-      <span>ELETRONET · ENGENHARIA</span>
-      <p>Emissão de AF/AS e CPM/CPS</p>
+      <svg class="faixa" role="img" aria-label="Auto AF/AS — by Eletronet"><use href="#marcaAFAS"/></svg>
     </div>
     <nav class="tabs" aria-label="Área de trabalho">
-      <span class="nav-caption" aria-hidden="true">DOCUMENTOS</span>
-      <button class="tab active" id="tabGerar" title="Gerar AF/AS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12h6M9 16h4"/></svg><span class="rot">Gerar AF/AS</span></button>
-      <button class="tab" id="tabCPM" title="CPM/CPS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h2m3 0h3M8 16h2m3 0h3"/></svg><span class="rot">CPM/CPS</span></button>
+      <button class="tab active" id="tabGerar" title="Gerar AF/AS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12h6M9 16h4"/></svg><span class="rot">AF / AS</span></button>
+      <button class="tab" id="tabCPM" title="CPM/CPS"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h2m3 0h3M8 16h2m3 0h3"/></svg><span class="rot">CPM / CPS</span></button>
       <button class="tab" id="tabCadastros" title="Cadastros"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h7l2 3h9v12H3zM12 11v6m-3-3h6"/></svg><span class="rot">Cadastros</span></button>
-      <button class="tab" id="tabExcluir" title="Excluir e gerenciar registros"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg><span class="rot">Excluir</span></button>
-      <!-- A fita de Möbius é a marca da casa: um laço sem começo nem fim, o
-           fluxo contínuo da fibra. Substituiu um risquinho listrado que não
-           queria dizer nada. -->
-      <span class="nav-signature" aria-hidden="true">
-        <svg class="nav-fita" viewBox="0 0 120 60" focusable="false">
-          <path d="M14 30 C14 12, 46 12, 60 30 C74 48, 106 48, 106 30 C106 12, 74 12, 60 30 C46 48, 14 48, 14 30 Z"/>
-        </svg>
-        ELETRONET<small>ENGENHARIA</small>
-      </span>
+      <button class="tab" id="tabExcluir" title="Excluir e gerenciar registros"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg><span class="rot">Gerenciar</span></button>
     </nav>
     <div class="topbar-tools">
-      <button class="btn ghost" id="btnTema" data-curto="Tema" title="Alternar tema claro/escuro">☀ <span class="rot">Tema</span></button>
-      <div id="acoesGerar" class="acoes">
-        <div class="tool-group tool-source">
-          <label class="pdfsel">PDF
-            <!-- a PRIMEIRA opção é o padrão: o Visual é o mesmo documento da
-                 prévia, então o que se vê na tela é o que sai no PDF -->
-            <select id="pdfEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet.">
-              <option value="html">Visual (HTML)</option>
-              <option value="excel">Oficial</option>
-            </select>
-          </label>
-          <button class="btn soft" id="btnLer" data-curto="Ler" title="Ler proposta — PDF comum ou Excel (CIENA/DDPTool). Pode escolher VÁRIOS arquivos quando a proposta vem repartida (técnica + comercial).">📂 <span class="rot">Ler proposta</span></button>
-          <button class="btn soft" id="btnImportarAF" data-curto="Importar" title="Ler uma AF/AS já pronta (.xlsx ou o PDF gerado pelo app) e trazer todas as informações de volta">📥 <span class="rot">Importar AF</span></button>
-          <button class="btn soft" id="btnLimparAF" data-curto="Limpar" type="button" title="Limpar todos os campos da AF e começar do zero">✕ <span class="rot">Limpar</span></button>
-        </div>
-        <div class="tool-group tool-output">
-          <button class="btn soft" id="btnExcel" data-curto="Excel" title="Baixar em Excel (.xlsx)">📊 <span class="rot">Excel</span></button>
-          <button class="btn primary" id="btnPdf" data-curto="Gerar PDF" title="Gerar o PDF da AF">📄 <span class="rot">Gerar PDF</span></button>
-        </div>
-        <!-- VÁRIAS PARTES: Precision e SEICOM mandam a proposta repartida
-             (técnica + comercial), e nenhuma delas sozinha tem tudo -->
-        <input type="file" id="filePdf" accept=".pdf,.xlsx,.xlsm" multiple hidden />
-        <input type="file" id="fileAF" accept=".xlsx,.xlsm,.pdf" hidden />
-      </div>
+      <button class="btn icone" id="btnTema" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="ico"><use href="#i-tema"/></svg></button>
     </div>
   </header>
 
@@ -168,170 +145,254 @@
 
   <!-- ============================ ABA: GERAR AF ============================ -->
   <div class="split" id="viewGerar">
+    <!-- BARRA DO DOCUMENTO: qual AF está sendo feita e o que se faz com ela.
+         Mesma forma da barra do CPM: título à esquerda, ações à direita, na
+         ordem em que se usam — trazer a proposta, e no fim gerar. -->
+    <div class="document-bar">
+      <div class="doc-titulo">
+        <span class="doc-eyebrow" id="barTipo">Autorização de fornecimento</span>
+        <strong class="doc-id" id="barId">AF-E-___/2026</strong>
+      </div>
+      <div id="acoesGerar" class="acoes">
+        <div class="tool-group">
+          <button class="btn azul" id="btnLer" title="Ler proposta — PDF comum ou Excel (CIENA/DDPTool). Pode escolher VÁRIOS arquivos quando a proposta vem repartida (técnica + comercial)."><svg class="ico"><use href="#i-ler"/></svg><span class="rot">Ler proposta</span></button>
+          <button class="btn ghost" id="btnImportarAF" title="Ler uma AF/AS já pronta (PDF ou Excel) e trazer todas as informações de volta"><svg class="ico"><use href="#i-importar"/></svg><span class="rot">Importar AF</span></button>
+          <button class="btn ghost" id="btnLimparAF" type="button" title="Limpar todos os campos da AF e começar do zero (Ctrl+Z desfaz)"><svg class="ico"><use href="#i-limpar"/></svg><span class="rot">Limpar</span></button>
+        </div>
+        <div class="tool-group">
+          <!-- a PRIMEIRA opção é o padrão: o Visual é o mesmo documento da
+               prévia, então o que se vê na tela é o que sai no PDF -->
+          <label class="pdfsel">PDF
+            <select id="pdfEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet.">
+              <option value="html">Visual</option>
+              <option value="excel">Oficial</option>
+            </select>
+          </label>
+          <button class="btn ghost" id="btnExcel" title="Baixar em Excel (.xlsx)"><svg class="ico"><use href="#i-excel"/></svg><span class="rot">Excel</span></button>
+          <button class="btn primary" id="btnPdf" title="Gerar o PDF da AF (Ctrl+S)"><svg class="ico"><use href="#i-pdf"/></svg><span class="rot">Gerar PDF</span></button>
+        </div>
+        <!-- VÁRIAS PARTES: Precision e SEICOM mandam a proposta repartida
+             (técnica + comercial), e nenhuma delas sozinha tem tudo -->
+        <input type="file" id="filePdf" accept=".pdf,.xlsx,.xlsm" multiple hidden />
+        <input type="file" id="fileAF" accept=".xlsx,.xlsm,.pdf" hidden />
+      </div>
+    </div>
+
     <!-- ======================= FORMULÁRIO ======================= -->
     <div class="form-col">
-      <div class="form-context" aria-label="Etapas da emissão">
-        <div class="form-context-title">
-          <span>EMISSÃO DE DOCUMENTOS</span>
-          <strong>Nova AF / AS<span class="context-line" aria-hidden="true"></span></strong>
-        </div>
-        <div class="form-steps" role="navigation" aria-label="Ir para uma etapa do formulário">
-          <button type="button" class="active" data-jump="secFornecedor"><b>01</b><span>Fornecedor</span></button>
-          <button type="button" data-jump="secDados"><b>02</b><span>Condições</span></button>
-          <button type="button" data-jump="secDocumento"><b>03</b><span>Documento</span></button>
-          <button type="button" data-jump="secItens"><b>04</b><span>Itens</span></button>
-        </div>
-      </div>
+      <!-- O MAPA DA AF: as seis partes, na ordem do formulário, cada uma com o
+           seu estado (✓ quando o essencial dela está preenchido). Antes eram
+           quatro atalhos para sete blocos, com nomes diferentes dos títulos. -->
+      <nav class="form-steps" aria-label="Partes da AF">
+        <button type="button" class="active" data-jump="secFornecedor"><i class="passo-n">1</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Fornecedor</span></button>
+        <button type="button" data-jump="secDados"><i class="passo-n">2</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Condições</span></button>
+        <button type="button" data-jump="secItens"><i class="passo-n">3</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Itens</span></button>
+        <button type="button" data-jump="secLocais"><i class="passo-n">4</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Entrega</span></button>
+        <button type="button" data-jump="secDocumento"><i class="passo-n">5</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Número</span></button>
+        <button type="button" data-jump="secExtras"><i class="passo-n">6</i><svg class="ico passo-ok"><use href="#i-ok"/></svg><span>Opcionais</span></button>
+      </nav>
+
+      <!-- O COMEÇO: com o formulário vazio, a primeira coisa na tela diz o que
+           fazer. Some sozinho assim que há fornecedor ou item. -->
+      <button type="button" class="comeco" id="comeco">
+        <svg class="ico"><use href="#i-ler"/></svg>
+        <span><b>Comece pela proposta do fornecedor</b>
+          Solte o PDF em qualquer lugar da janela, ou clique aqui para escolher. O formulário se preenche sozinho — depois é só conferir parte por parte.</span>
+      </button>
 
       <section class="card" id="secFornecedor">
-        <h2>Fornecedor <span class="cat-conta muted" id="catCount"></span></h2>
-        <div class="ac cat-busca">
-          <input id="catBusca" class="ac-inp" autocomplete="off"
-                 placeholder="🔎 buscar no catálogo — apelido, razão social ou CNPJ" />
-          <div class="ac-lista" id="catLista" hidden></div>
+        <div class="cardhead">
+          <h2><i class="card-n">1</i>Fornecedor</h2>
+          <span class="card-resumo" data-resumo></span>
+          <span class="cat-conta" id="catCount"></span>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
         </div>
-        <select id="catalogo" class="catalogo-oculto" tabindex="-1" aria-hidden="true"><option value="-1">— selecione —</option></select>
-        <div class="cat-marca" id="catMarca" hidden>
-          <span id="catMarcaNome"></span>
-          <button type="button" class="chipx" id="catMarcaX" title="Soltar do catálogo e editar à mão">✕</button>
-        </div>
-        <div class="fgrid">
-          <div class="f c12"><label>Nome do fornecedor <b>*</b></label><input id="fornecedor" /></div>
-          <div class="f c5"><label>CNPJ</label><input id="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" /></div>
-          <div class="f c4"><label>Inscrição Estadual</label><input id="ie" /></div>
-          <div class="f c3"><label>CEP</label><input id="cep" inputmode="numeric" placeholder="00000-000" /></div>
-          <div class="f c12"><label>Endereço</label><input id="endereco" /></div>
-          <div class="f c6"><label title="Data em que o fornecedor emitiu a proposta">Data da proposta</label><input id="dataProp" /></div>
-          <div class="f c6"><label>Garantia <button type="button" class="lnkmini" id="btnPorItemGarantia" title="Definir garantia por produto (cada item pode ter garantia diferente)">🛠 por produto</button></label>
-            <div class="numunit">
-              <input id="garantiaNum" placeholder="12" />
-              <select id="garantiaUn"><option>Dias</option><option selected>Meses</option><option>Anos</option><option>Ano</option><option>Livre</option></select>
-            </div>
+        <div class="card-corpo">
+          <div class="ac cat-busca">
+            <input id="catBusca" class="ac-inp" autocomplete="off"
+                   placeholder="Buscar no catálogo — apelido, razão social ou CNPJ" />
+            <div class="ac-lista" id="catLista" hidden></div>
+          </div>
+          <select id="catalogo" class="catalogo-oculto" tabindex="-1" aria-hidden="true"><option value="-1">— selecione —</option></select>
+          <div class="cat-marca" id="catMarca" hidden>
+            <span id="catMarcaNome"></span>
+            <button type="button" class="chipx" id="catMarcaX" title="Soltar do catálogo e editar à mão">✕</button>
+          </div>
+          <div class="fgrid">
+            <div class="f c12"><label>Nome do fornecedor <b>*</b></label><input id="fornecedor" /></div>
+            <div class="f c5"><label>CNPJ</label><input id="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" /></div>
+            <div class="f c4"><label>Inscrição estadual</label><input id="ie" /></div>
+            <div class="f c3"><label>CEP</label><input id="cep" inputmode="numeric" placeholder="00000-000" /></div>
+            <div class="f c12"><label>Endereço</label><input id="endereco" /></div>
           </div>
         </div>
       </section>
 
+      <!-- PROPOSTA E CONDIÇÕES juntas: nº e data da proposta, valor, prazo,
+           garantia e pagamento estavam divididos entre "Fornecedor" e "Dados
+           da AF" — a garantia morava no cartão do fornecedor. -->
       <section class="card" id="secDados">
-        <h2>Dados da AF</h2>
-        <div class="fgrid">
-          <div class="f c7"><label>Nº da proposta</label><input id="numProp" /></div>
-          <div class="f c5"><label>Moeda</label><select id="moeda"></select></div>
-          <div class="f c6"><label>Valor total <b>*</b> <button type="button" class="lnkmini" id="btnSomar" title="Somar o total (c/ impostos) de todos os itens">Σ somar itens</button></label><input id="valor" placeholder="soma dos itens (c/ impostos)" /></div>
-          <div class="f c6"><label>Prazo de entrega <button type="button" class="lnkmini" id="btnPorItemPrazo" title="Definir prazo de entrega por produto (cada item pode ter prazo diferente)">🛠 por produto</button></label>
-            <div class="numunit">
-              <input id="prazoNum" placeholder="45" />
-              <select id="prazoUn"><option selected>Dias</option><option>Meses</option><option>Anos</option><option>Ano</option><option>Pronta-entrega</option><option>Livre</option></select>
+        <div class="cardhead">
+          <h2><i class="card-n">2</i>Proposta e condições</h2>
+          <span class="card-resumo" data-resumo></span>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
+        </div>
+        <div class="card-corpo">
+          <div class="fgrid">
+            <div class="f c6"><label>Nº da proposta</label><input id="numProp" /></div>
+            <div class="f c6"><label title="Data em que o fornecedor emitiu a proposta">Data da proposta</label><input id="dataProp" /></div>
+            <div class="f c7"><label>Valor total <b>*</b> <button type="button" class="lnkmini" id="btnSomar" title="Somar o total (c/ impostos) de todos os itens">Σ somar itens</button></label><input id="valor" placeholder="soma dos itens (c/ impostos)" /></div>
+            <div class="f c5"><label>Moeda</label><select id="moeda"></select></div>
+            <div class="f c6"><label>Prazo de entrega <button type="button" class="lnkmini" id="btnPorItemPrazo" title="Definir prazo de entrega por produto (cada item pode ter prazo diferente)">por produto</button></label>
+              <div class="numunit">
+                <input id="prazoNum" placeholder="45" />
+                <select id="prazoUn"><option selected>Dias</option><option>Meses</option><option>Anos</option><option>Ano</option><option>Pronta-entrega</option><option>Livre</option></select>
+              </div>
             </div>
+            <div class="f c6"><label>Garantia <button type="button" class="lnkmini" id="btnPorItemGarantia" title="Definir garantia por produto (cada item pode ter garantia diferente)">por produto</button></label>
+              <div class="numunit">
+                <input id="garantiaNum" placeholder="12" />
+                <select id="garantiaUn"><option>Dias</option><option selected>Meses</option><option>Anos</option><option>Ano</option><option>Livre</option></select>
+              </div>
+            </div>
+            <div class="f c12"><label>Condição de pagamento</label><input id="pagto" /></div>
+            <div class="f c12"><label>Objeto do fornecimento <button type="button" class="lnkmini" id="btnResumir" title="Gerar um resumo a partir dos itens">resumir dos itens</button></label><input id="objeto" placeholder="Resumo de tudo que está sendo fornecido" /></div>
           </div>
-          <div class="f c12"><label>Condição de pagamento</label><input id="pagto" /></div>
-          <div class="f c12"><label>Objeto do fornecimento <button type="button" class="lnkmini" id="btnResumir" title="Gerar um resumo a partir dos itens">✨ resumir dos itens</button></label><input id="objeto" placeholder="Resumo de tudo que está sendo fornecido" /></div>
         </div>
       </section>
 
-      <section class="card" id="secDocumento">
-        <h2>Identificador</h2>
-        <div class="fgrid">
-          <div class="f c4"><label>Prefixo</label><select id="prefixo"></select></div>
-          <div class="f c4"><label>Número <b>*</b></label><input id="numero" placeholder="207" /></div>
-          <div class="f c4"><label>Ano</label><input id="ano" /></div>
-          <div class="f c4"><label>Modificação</label><select id="mod"></select></div>
-          <div class="f c4"><label>Emissão</label><input id="dataEmis" /></div>
-          <div class="f c4"><label>Revisão</label><input id="rev" value="0" /></div>
+      <section class="card" id="secItens">
+        <div class="cardhead">
+          <h2><i class="card-n">3</i>Itens</h2>
+          <span class="card-resumo" data-resumo></span>
+          <div class="cardhead-acoes">
+            <label class="liga" title="Ligado: o app preenche o unitário c/ imposto e o total (qtd × unitário). Desligado: nenhum campo é calculado — você digita todos os valores como estão na proposta.">
+              <input type="checkbox" id="ckCalcular" checked><span>Calcular</span>
+            </label>
+            <label class="liga" title="Lançar IPI, ICMS, ISS… sobre os produtos — o preço com impostos e o total são calculados a partir daí">
+              <input type="checkbox" id="ckImpostos"><span>Impostos</span>
+            </label>
+            <button class="btn ghost sm" id="btnAddItem"><svg class="ico"><use href="#i-mais"/></svg>Item</button>
+          </div>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
         </div>
-        <!-- Como o documento vai se chamar, montado ao vivo: o identificador sai
-             de seis campos e só aparecia depois de gerar o arquivo. -->
-        <div class="idprev">
-          <div class="idprev-l">
-            <span class="idprev-rot">Documento</span>
-            <b id="idPrevDoc">—</b>
-          </div>
-          <div class="idprev-l">
-            <span class="idprev-rot">Arquivo</span>
-            <code id="idPrevArq">—</code>
-          </div>
+        <div class="card-corpo">
+          <div class="imp-itens" id="impItens" hidden></div>
+          <table class="items"><thead><tr>
+            <th>#</th><th title="Código do produto · Part Number (PN) · Referência · SKU">Código / PN</th><th>Descrição</th><th>Qtd</th><th>Unit. s/i</th><th>Unit. c/i</th><th>Total</th><th></th>
+          </tr></thead><tbody id="itensBody"></tbody></table>
+          <div class="gp-itens" id="gpItens" hidden></div>
         </div>
       </section>
 
       <section class="card" id="secLocais">
-        <h2>Locais <span class="muted">(pode adicionar vários por AF)</span></h2>
-        <label>Faturamento (Eletronet) <span class="muted">— ao escolher, os POPs do mesmo estado sobem ao topo</span></label>
-        <div class="addrow">
-          <div class="ac">
-            <input id="fatBusca" class="ac-inp" autocomplete="off" placeholder="🔎 buscar filial (UF, razão social)…" />
-            <div class="ac-lista" id="fatLista" hidden></div>
-          </div>
-          <button class="btn ghost sm" id="btnAddFat">➕ Adicionar</button>
+        <div class="cardhead">
+          <h2><i class="card-n">4</i>Faturamento e entrega</h2>
+          <span class="card-resumo" data-resumo></span>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
         </div>
-        <div class="chips" id="fatList"></div>
-
-        <label style="margin-top:12px">Locais de entrega (POP)</label>
-        <div class="addrow">
-          <div class="ac">
-            <input id="entBusca" class="ac-inp" autocomplete="off" placeholder="🔎 buscar POP (nome, sigla, município)…" />
-            <div class="ac-lista" id="entLista" hidden></div>
+        <div class="card-corpo">
+          <div class="loc-bloco">
+            <label for="fatBusca">Faturamento <span class="muted">— a filial da Eletronet que recebe a nota; pode ser mais de uma</span></label>
+            <div class="addrow">
+              <div class="ac">
+                <input id="fatBusca" class="ac-inp" autocomplete="off" placeholder="Buscar filial — UF ou razão social" />
+                <div class="ac-lista" id="fatLista" hidden></div>
+              </div>
+              <button class="btn ghost sm" id="btnAddFat"><svg class="ico"><use href="#i-mais"/></svg>Adicionar</button>
+            </div>
+            <div class="chips" id="fatList"></div>
           </div>
-          <button class="btn ghost sm" id="btnAddEnt">➕ Adicionar</button>
+          <div class="loc-bloco">
+            <label for="entBusca">Locais de entrega <span class="muted">— os POPs do estado da filial aparecem primeiro</span></label>
+            <div class="addrow">
+              <div class="ac">
+                <input id="entBusca" class="ac-inp" autocomplete="off" placeholder="Buscar POP — nome, sigla ou município" />
+                <div class="ac-lista" id="entLista" hidden></div>
+              </div>
+              <button class="btn ghost sm" id="btnAddEnt"><svg class="ico"><use href="#i-mais"/></svg>Adicionar</button>
+            </div>
+            <div class="chips" id="entList"></div>
+          </div>
         </div>
-        <div class="chips" id="entList"></div>
       </section>
 
-      <section class="card" id="secItens">
-        <div class="cardhead"><h2>Itens</h2>
-          <div class="cardhead-acoes">
-            <label class="liga" title="Ligado: o app preenche o unitário c/ imposto e o total (qtd × unitário). Desligado: nenhum campo é calculado — você digita todos os valores como estão na proposta.">
-              <input type="checkbox" id="ckCalcular" checked><span>🧮 Calcular</span>
-            </label>
-            <label class="liga" title="Lançar IPI, ICMS, ISS… sobre os produtos — o preço com impostos e o total são calculados a partir daí">
-              <input type="checkbox" id="ckImpostos"><span>🧾 Impostos</span>
-            </label>
-            <button class="btn ghost sm" id="btnAddItem">➕ Item</button>
+      <section class="card" id="secDocumento">
+        <div class="cardhead">
+          <h2><i class="card-n">5</i>Número e emissão</h2>
+          <span class="card-resumo" data-resumo></span>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
+        </div>
+        <div class="card-corpo">
+          <div class="fgrid">
+            <div class="f c4"><label>Prefixo</label><select id="prefixo"></select></div>
+            <div class="f c4"><label>Número <b>*</b></label><input id="numero" placeholder="207" /></div>
+            <div class="f c4"><label>Ano</label><input id="ano" /></div>
+            <div class="f c4"><label>Modificação</label><select id="mod"></select></div>
+            <div class="f c4"><label>Emissão</label><input id="dataEmis" /></div>
+            <div class="f c4"><label>Revisão</label><input id="rev" value="0" /></div>
+          </div>
+          <!-- Como o documento vai se chamar, montado ao vivo: o identificador
+               sai de seis campos e só aparecia depois de gerar o arquivo. -->
+          <div class="idprev">
+            <div class="idprev-l"><span class="idprev-rot">Documento</span><b id="idPrevDoc">—</b></div>
+            <div class="idprev-l"><span class="idprev-rot">Arquivo</span><code id="idPrevArq">—</code></div>
           </div>
         </div>
-        <div class="imp-itens" id="impItens" hidden></div>
-        <table class="items"><thead><tr>
-          <th>#</th><th title="Código do produto · Part Number (PN) · Referência · SKU">Código / PN</th><th>Descrição</th><th>Qtd</th><th>Unit. s/i</th><th>Unit. c/i</th><th>Total</th><th></th>
-        </tr></thead><tbody id="itensBody"></tbody></table>
-        <div class="gp-itens" id="gpItens" hidden></div>
       </section>
 
-      <section class="card" id="secAssinaturas">
-        <div class="cardhead"><h2>Assinaturas <span class="muted">(além das duas de sempre)</span></h2>
-          <div class="cardhead-acoes">
-            <div class="rub-wrap">
-              <label class="liga" title="Acrescenta uma linha discreta no rodapé, à esquerda, para a Eletronet rubricar a folha. Só a rubrica — as assinaturas continuam onde estão.">
-                <input type="checkbox" id="ckRubricas"><span>✍ Rubricas no rodapé</span>
-              </label>
-              <!-- O MODO mora aqui, num interruptor escondido, e não numa
-                   variável do JS: assim ele entra de graça na foto do rascunho
-                   (_MARCAS_AF guarda `checked`) e volta junto com a AF. -->
-              <input type="checkbox" id="ckRubTodas" hidden>
-              <!-- mostra o modo escolhido e reabre a escolha: sem isto, depois
-                   de fechar o balão não haveria como saber (nem trocar) onde a
-                   rubrica vai sair. -->
-              <button class="rub-modo" id="btnRubModo" type="button" hidden
-                      title="Trocar onde a rubrica aparece">última folha</button>
-              <div class="rub-pop" id="rubPop" role="dialog" aria-label="Onde a rubrica aparece" hidden>
-                <p class="rub-pop-t">Rubricar em que folha?</p>
-                <button class="rub-op" type="button" data-todas="0">
-                  <b>Só na última</b><i>junto das assinaturas</i>
-                </button>
-                <button class="rub-op" type="button" data-todas="1">
-                  <b>Em todas as folhas</b><i>uma linha no pé de cada página</i>
-                </button>
+      <!-- OPCIONAIS num cartão só: assinaturas a mais, rubrica e observações
+           não entram em toda AF, e cada uma ocupava um cartão do tamanho dos
+           essenciais. Vazio, ele pode ficar recolhido numa linha. -->
+      <section class="card" id="secExtras">
+        <div class="cardhead">
+          <h2><i class="card-n">6</i>Opcionais</h2>
+          <span class="card-resumo" data-resumo></span>
+          <button type="button" class="card-dobra" aria-expanded="true" title="Recolher"><svg class="ico"><use href="#i-dobra"/></svg></button>
+        </div>
+        <div class="card-corpo">
+          <div class="sub" id="secAssinaturas">
+            <div class="sub-top">
+              <h3>Assinaturas <span class="muted">além de Eletronet e fornecedor</span></h3>
+              <div class="cardhead-acoes">
+                <div class="rub-wrap">
+                  <label class="liga" title="Acrescenta uma linha discreta no rodapé, à esquerda, para a Eletronet rubricar a folha. Só a rubrica — as assinaturas continuam onde estão.">
+                    <input type="checkbox" id="ckRubricas"><span>Rubrica no rodapé</span>
+                  </label>
+                  <!-- O MODO mora aqui, num interruptor escondido, e não numa
+                       variável do JS: assim ele entra de graça na foto do rascunho
+                       (_MARCAS_AF guarda `checked`) e volta junto com a AF. -->
+                  <input type="checkbox" id="ckRubTodas" hidden>
+                  <!-- mostra o modo escolhido e reabre a escolha: sem isto, depois
+                       de fechar o balão não haveria como saber (nem trocar) onde a
+                       rubrica vai sair. -->
+                  <button class="rub-modo" id="btnRubModo" type="button" hidden
+                          title="Trocar onde a rubrica aparece">última folha</button>
+                  <div class="rub-pop" id="rubPop" role="dialog" aria-label="Onde a rubrica aparece" hidden>
+                    <p class="rub-pop-t">Rubricar em que folha?</p>
+                    <button class="rub-op" type="button" data-todas="0">
+                      <b>Só na última</b><i>junto das assinaturas</i>
+                    </button>
+                    <button class="rub-op" type="button" data-todas="1">
+                      <b>Em todas as folhas</b><i>uma linha no pé de cada página</i>
+                    </button>
+                  </div>
+                </div>
+                <button class="btn ghost sm" id="btnAddAssinante" type="button"><svg class="ico"><use href="#i-mais"/></svg>Assinante</button>
               </div>
             </div>
-            <button class="btn ghost sm" id="btnAddAssinante" type="button">➕ Assinante</button>
+            <div class="pessoas" id="assinantesList"></div>
+          </div>
+          <div class="sub">
+            <div class="sub-top">
+              <h3>Observações <span class="muted">para o que sai do escopo padrão</span></h3>
+              <button class="btn ghost sm" id="btnAddObs"><svg class="ico"><use href="#i-mais"/></svg>Observação</button>
+            </div>
+            <div id="obsList" class="obs-rows"></div>
+            <div class="muted obs-vazio" id="obsVazio">Nenhuma observação.</div>
           </div>
         </div>
-        <div class="pessoas" id="assinantesList"></div>
       </section>
-
-      <section class="card">
-        <div class="cardhead"><h2>Observações <span class="muted">(opcional — para o que sai do escopo padrão)</span></h2><button class="btn ghost sm" id="btnAddObs">➕ Observação</button></div>
-        <div id="obsList" class="obs-rows"></div>
-        <div class="muted obs-vazio" id="obsVazio" style="font-size:12px">Nenhuma observação. Clique em <b>➕ Observação</b> para adicionar notas que fogem do padrão.</div>
-      </section>
-
     </div>
 
     <!-- A régua lateral mantém a prévia acessível mesmo quando ela é recolhida
@@ -343,7 +404,7 @@
 
     <!-- ======================= PRÉVIA ======================= -->
     <div class="preview-col">
-      <div class="preview-head">Prévia da AF/AS <span class="muted">(atualiza ao digitar)</span>
+      <div class="preview-head">Prévia <span class="muted">atualiza enquanto você digita</span>
         <span class="modelo-tag" id="tagModeloAF"></span>
       </div>
       <iframe id="preview" title="Prévia da AF"></iframe>
@@ -507,14 +568,21 @@
   <!-- ============================ ABA: CPM / CPS ============================ -->
   <div class="split" id="viewCPM" hidden>
     <div class="document-bar">
-      <div class="form-context-title"><span>COLETA DE PREÇOS</span><strong>CPM / CPS</strong></div>
-      <div class="document-actions">
-        <label class="pdfsel">PDF
-          <select id="cpmEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet."><option value="html">Visual (HTML)</option><option value="excel">Oficial</option></select>
-        </label>
-        <button class="btn ghost sm" id="btnLimparCPM" type="button" title="Limpar os campos do CPM/CPS e começar do zero">✕ <span class="rot">Limpar</span></button>
-        <button class="btn soft sm" id="btnCpmExcel">📊 Excel</button>
-        <button class="btn primary sm" id="btnCpmPdf">📋 Gerar CPM</button>
+      <div class="doc-titulo">
+        <span class="doc-eyebrow">Coleta de preços</span>
+        <strong class="doc-id">CPM / CPS</strong>
+      </div>
+      <div class="acoes">
+        <div class="tool-group">
+          <button class="btn ghost" id="btnLimparCPM" type="button" title="Limpar os campos do CPM/CPS e começar do zero"><svg class="ico"><use href="#i-limpar"/></svg><span class="rot">Limpar</span></button>
+        </div>
+        <div class="tool-group">
+          <label class="pdfsel">PDF
+            <select id="cpmEstilo" title="Qual PDF gerar. O Visual é o documento que aparece na prévia; o Oficial é a planilha da Eletronet."><option value="html">Visual</option><option value="excel">Oficial</option></select>
+          </label>
+          <button class="btn ghost" id="btnCpmExcel" title="Baixar em Excel (.xlsx)"><svg class="ico"><use href="#i-excel"/></svg><span class="rot">Excel</span></button>
+          <button class="btn primary" id="btnCpmPdf" title="Gerar o PDF do CPM/CPS"><svg class="ico"><use href="#i-pdf"/></svg><span class="rot">Gerar CPM</span></button>
+        </div>
       </div>
     </div>
     <div class="form-col">
@@ -618,7 +686,7 @@
     </button>
 
     <div class="preview-col">
-      <div class="preview-head">Prévia do CPM/CPS <span class="muted">(atualiza ao editar)</span>
+      <div class="preview-head">Prévia <span class="muted">atualiza enquanto você edita</span>
         <span class="modelo-tag" id="tagModeloCPM"></span>
       </div>
       <iframe id="cpmPreview" title="Prévia do CPM"></iframe>

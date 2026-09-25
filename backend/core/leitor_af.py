@@ -1160,7 +1160,10 @@ def _paginas_da_af(pdf) -> tuple[list[int], str]:
     pags, ilegivel, fechou = [], None, False
     for i, pg in enumerate(pdf.pages[:15]):
         t = primeira if i == 0 else (pg.extract_text() or "")
-        if i > 0 and layout == "modelo" and "AUTORIZA" not in t.upper():
+        # No modelo, folha da AF tem o título — ou, quando a tabela de itens
+        # passou de uma folha, o CABEÇALHO DA TABELA repetido no alto.
+        continua = re.search(r"\bItem\b.{0,40}(C[óo]digo|Descri[çc][ãa]o)", t[:1500], re.S)
+        if i > 0 and layout == "modelo" and "AUTORIZA" not in t.upper() and not continua:
             # FONTE QUEBRADA: o texto sai como "(cid:5)(cid:17)..." e nenhuma
             # leitura recupera. Se a AF ainda não tinha chegado ao fim, esta
             # folha provavelmente era dela — e quem importa precisa saber.

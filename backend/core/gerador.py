@@ -190,6 +190,34 @@ def _preencher_secao(ws, data_row: int, locais: list[dict], col_map: list[tuple]
             ws[f"{col}{r}"] = loc.get(chave, "") or ""
 
 
+def _abrir_linhas_de_itens(ws, n_itens: int) -> int:
+    """Faz a tabela de itens do modelo CRESCER até caber `n_itens`.
+
+    O modelo tem 14 linhas de item (29-42), e o laço antigo parava na 14ª em
+    silêncio: a AF-E-288 da CIENA saiu em Excel com 14 dos 21 itens. Aqui as
+    linhas que faltam entram logo abaixo da 42, com o estilo e as mesclagens da
+    linha-modelo (C:K, N:O, P:Q — `_inserir_linhas` desloca as de baixo mas não
+    cria as novas); o total e as notas descem junto.
+
+    E a folha deixa de ser "caber tudo numa página": o modelo vem assim, e com
+    40 itens a letra ficaria ilegível. Passa a ser a LARGURA da folha e a altura
+    em quantas folhas precisar, com o cabeçalho da tabela repetido em cada uma.
+
+    Devolve quantas linhas foram acrescentadas (o deslocamento do que vem
+    abaixo da tabela)."""
+    extra = max(0, n_itens - (ITEM_LIN_FIM - ITEM_LIN_INI + 1))
+    if not extra:
+        return 0
+    _inserir_linhas(ws, ITEM_LIN_FIM, extra)
+    for r in range(ITEM_LIN_FIM + 1, ITEM_LIN_FIM + 1 + extra):
+        for a, b in (("C", "K"), ("N", "O"), ("P", "Q")):
+            ws.merge_cells(f"{a}{r}:{b}{r}")
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0            # 0 = quantas folhas precisar
+    ws.print_title_rows = f"{ITEM_LIN_INI - 2}:{ITEM_LIN_INI - 1}"
+    return extra
+
+
 _FAT_COLS = list(zip("BCDEFGH",
                      ("uf", "razao_social", "cnpj", "endereco", "cep", "cnpj2", "insc_est")))
 _ENT_COLS = list(zip("BCDEFGHIJ",
@@ -247,16 +275,32 @@ def _preencher_template(prop, prefixo, numero, ano, modificacao,
                   if valor_f is not None else "")
     pg1["A25"] = prop.objeto
 
-    for r in range(ITEM_LIN_INI, ITEM_LIN_FIM + 1):
+    itens = _itens_ou_padrao(prop)
+    extra = _abrir_linhas_de_itens(pg1, len(itens))   # tudo abaixo da tabela desce `extra`
+    lin_total = LINHA_VALOR_TOTAL + extra
+    for r in range(ITEM_LIN_INI, ITEM_LIN_FIM + extra + 1):
         for col in ("A", "B", "C", "L", "M", "N", "P", "R", "S", "T"):
             pg1[f"{col}{r}"] = None
-    for i, it in enumerate(_itens_ou_padrao(prop)):
+    from openpyxl.styles import Alignment
+    for i, it in enumerate(itens):
         r = ITEM_LIN_INI + i
-        if r > ITEM_LIN_FIM:
-            break
         pg1[f"A{r}"] = i + 1
         pg1[f"B{r}"] = it.codigo
         pg1[f"C{r}"] = it.descricao
+        # DESCRIÇÃO LONGA QUEBRA LINHA. O modelo não quebra: o texto passava
+        # da célula e a folha impressa cortava as pontas ("sponder Muxponder
+        # ... (lot"). A célula C:K comporta ~110 caracteres em Arial 10
+        # negrito; com folga, 95 por linha, e a linha cresce para caber.
+        pg1[f"C{r}"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        n_linhas = -(-len(str(it.descricao or "")) // 95)
+        if n_linhas > 1:
+            pg1.row_dimensions[r].height = max(pg1.row_dimensions[r].height or 15, 12.75 * n_linhas + 4)
+            # na linha que cresceu, nº, código e preços no MEIO, como a descrição
+            # (o modelo os deixa no pé, e o item parecia desalinhado)
+            for col in ("A", "B", "L", "M", "N", "P", "R"):
+                al = pg1[f"{col}{r}"].alignment
+                pg1[f"{col}{r}"].alignment = Alignment(horizontal=al.horizontal, vertical="center",
+                                                       wrap_text=al.wrap_text)
         pg1[f"L{r}"] = _num(it.quantidade)
         pg1[f"M{r}"] = it.unidade
         pg1[f"N{r}"] = _num(it.preco_unit_sem)
@@ -264,8 +308,11 @@ def _preencher_template(prop, prefixo, numero, ano, modificacao,
         pg1[f"R{r}"] = _num(it.preco_total_com)
         for col in ("N", "P", "R"):
             pg1[f"{col}{r}"].number_format = fmt
-    pg1[f"R{LINHA_VALOR_TOTAL}"] = valor_f
-    pg1[f"R{LINHA_VALOR_TOTAL}"].number_format = fmt
+    pg1[f"R{lin_total}"] = valor_f
+    pg1[f"R{lin_total}"].number_format = fmt
+    # U19 (o total do topo) é "=R43" no modelo; o openpyxl não reescreve a
+    # fórmula ao inserir linhas, e ela passaria a apontar para um item
+    pg1["U19"] = f"=R{lin_total}"
     pg1["U19"].number_format = fmt
 
     try:
@@ -274,19 +321,23 @@ def _preencher_template(prop, prefixo, numero, ano, modificacao,
     except Exception:
         pass
 
-    pg1["B45"] = (f"A Proposta da {prop.fornecedor} com a numeração: "
-                  f"{prop.numero_proposta}, está anexada e é parte integrante desta.")
+    # As notas vêm logo abaixo da tabela: descem o que a tabela cresceu.
+    def nota(linha):
+        return f"B{linha + extra}"
+
+    pg1[nota(45)] = (f"A Proposta da {prop.fornecedor} com a numeração: "
+                     f"{prop.numero_proposta}, está anexada e é parte integrante desta.")
     # Observações opcionais (fora do escopo padrão) → linha livre B46 (merge B46:V46).
     obs = [str(o).strip() for o in getattr(prop, "observacoes", []) or [] if str(o).strip()]
     if obs:
         from openpyxl.styles import Alignment
-        pg1["B46"] = "Observações: " + " • ".join(obs)
-        pg1["B46"].alignment = Alignment(wrap_text=True, vertical="top")
-    pg1["B47"] = f"Os preços estão expressos em {mo['plur'].title()} ({mo['simb']})"
-    pg1["B49"] = "CONDIÇÕES DE FATURAMENTO E PAGAMENTO"
-    pg1["B50"] = (f"As importâncias objeto desta AF deverão ser pagas pela "
-                  f"Eletronet a {prop.fornecedor}, conforme segue:")
-    pg1["B51"] = prop.condicao_pagamento or ""
+        pg1[nota(46)] = "Observações: " + " • ".join(obs)
+        pg1[nota(46)].alignment = Alignment(wrap_text=True, vertical="top")
+    pg1[nota(47)] = f"Os preços estão expressos em {mo['plur'].title()} ({mo['simb']})"
+    pg1[nota(49)] = "CONDIÇÕES DE FATURAMENTO E PAGAMENTO"
+    pg1[nota(50)] = (f"As importâncias objeto desta AF deverão ser pagas pela "
+                     f"Eletronet a {prop.fornecedor}, conforme segue:")
+    pg1[nota(51)] = prop.condicao_pagamento or ""
 
     pg2["O10"] = doc_id
     pg2["L11"] = prop.numero_proposta

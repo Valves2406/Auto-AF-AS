@@ -268,6 +268,7 @@ function setPreviaRecolhida(recolhida, salvar) {
   if (salvar) {
     try { localStorage.setItem(PREVIA_PREF, recolhida ? "1" : "0"); } catch (e) {}
   }
+  requestAnimationFrame(ajustarPrevias);
 }
 function iniciarPreviaLateral() {
   let salvo = null;
@@ -297,6 +298,34 @@ function iniciarPreviaLateral() {
   document.querySelectorAll("[data-preview-toggle]").forEach(btn => {
     btn.onclick = () => setPreviaRecolhida(!document.body.classList.contains("preview-collapsed"), true);
   });
+  // a prévia acompanha a largura da coluna — inclusive quando a aba aparece
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => ajustarPrevias());
+    document.querySelectorAll(".preview-col").forEach(c => ro.observe(c));
+  }
+  window.addEventListener("resize", ajustarPrevias);
+  ajustarPrevias();
+}
+
+/* A PRÉVIA NA LARGURA DA FOLHA. O documento é responsivo: numa coluna
+   estreita ele se REORGANIZA (a Identificação descia para baixo do
+   Fornecedor), e a prévia deixava de ser o PDF — com a etiqueta ao lado
+   dizendo "o PDF sai assim". Agora ele é sempre desenhado na largura da
+   folha impressa e reduzido em escala para caber: o que se vê é o que sai. */
+const LARGURA_FOLHA = 820;
+function ajustarPrevias() {
+  for (const id of ["preview", "cpmPreview"]) {
+    const f = $(id);
+    const col = f && f.parentElement;
+    if (!col || !col.clientWidth) continue;          // aba escondida: mede quando aparecer
+    const esc = Math.min(1, col.clientWidth / LARGURA_FOLHA);
+    const head = col.querySelector(".preview-head");
+    const alt = col.clientHeight - (head ? head.offsetHeight : 0);
+    f.style.zoom = esc < 1 ? String(esc) : "";
+    f.style.width = esc < 1 ? LARGURA_FOLHA + "px" : "";
+    f.style.flex = esc < 1 ? "none" : "";
+    f.style.height = esc < 1 && alt > 0 ? Math.floor(alt / esc) + "px" : "";
+  }
 }
 
 // "Pronta-entrega" = entrega imediata: limpa e trava o campo de número (não há prazo em dias).
@@ -1094,25 +1123,112 @@ function bindForm() {
   bindConferenciaAF();
   atualizarIdPrev();
 
-  // Barra de etapas: dá uma rota curta para as partes longas do formulário e
-  // também mostra em qual bloco a pessoa está digitando. Não altera campo nem
-  // o payload enviado ao Python; só guia a navegação na coluna rolável.
-  const passos = [...document.querySelectorAll(".form-steps [data-jump]")];
+  ligarMapaDaAF(col);
+}
+
+// ----------------------------------------------- o mapa da AF (coluna) ------
+// A coluna do formulário tem seis partes, na ordem em que se preenche. Cada
+// cartão RECOLHE numa linha só, com o resumo do que tem dentro — a coluna fica
+// limpa sem esconder o que foi preenchido. No alto, o mapa das seis partes:
+// ✓ quando o essencial daquela parte está lá, e acende a parte que está na
+// tela enquanto se rola. Nada disso altera campo nem o que vai para o Python.
+const CARTOES_PREF = "autoaf.cartoes.v1";
+function cartoesSalvos() {
+  try { return JSON.parse(localStorage.getItem(CARTOES_PREF) || "null"); } catch (e) { return null; }
+}
+function guardarCartoes() {
+  const fechados = [...document.querySelectorAll("#viewGerar .form-col > .card.fechado")].map(c => c.id);
+  try { localStorage.setItem(CARTOES_PREF, JSON.stringify(fechados)); } catch (e) {}
+}
+function dobrarCartao(card, fechar) {
+  card.classList.toggle("fechado", !!fechar);
+  const b = card.querySelector(".card-dobra");
+  if (b) { b.setAttribute("aria-expanded", String(!fechar)); b.title = fechar ? "Abrir" : "Recolher"; }
+}
+function ligarMapaDaAF(col) {
+  const cartoes = [...col.querySelectorAll(":scope > .card[id]")];
+  const passos = [...col.querySelectorAll(".form-steps [data-jump]")];
   const marcarPasso = (id) => passos.forEach(b => b.classList.toggle("active", b.dataset.jump === id));
+  // o que a pessoa deixou recolhido volta recolhido; na primeira vez, só os
+  // OPCIONAIS começam fechados — não entram em toda AF
+  const salvos = cartoesSalvos();
+  cartoes.forEach(card => {
+    dobrarCartao(card, salvos ? salvos.includes(card.id) : card.id === "secExtras");
+    card.querySelector(".cardhead").addEventListener("click", (e) => {
+      // as ações do cabeçalho (Calcular, + Item, rubrica…) não dobram o cartão
+      if (!e.target.closest(".card-dobra") && e.target.closest(".cardhead-acoes, input, label, select")) return;
+      dobrarCartao(card, !card.classList.contains("fechado"));
+      guardarCartoes();
+    });
+  });
   passos.forEach(btn => {
     btn.onclick = () => {
       const alvo = $(btn.dataset.jump);
       if (!alvo) return;
+      if (alvo.classList.contains("fechado")) { dobrarCartao(alvo, false); guardarCartoes(); }
       marcarPasso(btn.dataset.jump);
       alvo.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
   col.addEventListener("focusin", (e) => {
     const card = e.target.closest(".card[id]");
-    if (!card) return;
-    const passo = passos.find(b => b.dataset.jump === card.id);
-    if (passo) marcarPasso(card.id);
+    if (card && passos.some(b => b.dataset.jump === card.id)) marcarPasso(card.id);
   });
+  let quadro = 0;
+  col.addEventListener("scroll", () => {
+    cancelAnimationFrame(quadro);
+    quadro = requestAnimationFrame(() => {
+      const linha = col.getBoundingClientRect().top + 90;
+      let atual = cartoes[0];
+      for (const c of cartoes) if (c.getBoundingClientRect().top <= linha) atual = c;
+      if (atual) marcarPasso(atual.id);
+    });
+  }, { passive: true });
+  $("comeco").onclick = () => $("btnLer").click();
+  atualizarMapa();
+}
+function atualizarMapa() {
+  const col = document.querySelector("#viewGerar .form-col");
+  if (!col || !$("comeco")) return;
+  try {
+    atualizarIdPrev();
+    const txt = (id) => (($(id) || {}).value || "").trim();
+    // cada pedaço do resumo é curto: o resumo é para reconhecer, não para ler
+    const curto = (s, n = 42) => s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+    const uteis = items.filter(it => (it.descricao || it.codigo || "").trim());
+    const total = somaItens();
+    const prazo = /pronta/i.test(txt("prazoUn")) ? "pronta-entrega"
+      : !txt("prazoNum") ? ""
+      : /^livre$/i.test(txt("prazoUn")) ? curto(txt("prazoNum"))
+      : `prazo ${txt("prazoNum")} ${txt("prazoUn").toLowerCase()}`;
+    const nObs = obsRows().filter(o => o.value.trim()).length;
+    const nAss = assinantesAF.filter(x => (x.nome || "").trim()).length;
+    const rub = $("ckRubricas").checked;
+    const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+    const partes = {
+      secFornecedor: [!!txt("fornecedor"), [curto(txt("fornecedor")), txt("cnpj")].filter(Boolean).join(" · ")],
+      secDados: [!!txt("valor"), [txt("valor") && `${txt("valor")} (${txt("moeda")})`, prazo, curto(txt("pagto"))].filter(Boolean).join(" · ")],
+      secItens: [uteis.length > 0, uteis.length ? plural(uteis.length, "item", "itens") + (total ? ` · soma ${total}` : "") : ""],
+      secLocais: [faturamentos.length > 0 && entregas.length > 0,
+                  (faturamentos.length || entregas.length)
+                    ? `${plural(faturamentos.length, "filial", "filiais")} · ${plural(entregas.length, "local", "locais")} de entrega` : ""],
+      secDocumento: [!!txt("numero"), ($("idPrevDoc") || {}).textContent || ""],
+      secExtras: [nAss + nObs > 0 || rub,
+                  [nAss && plural(nAss, "assinante", "assinantes"), rub && "rubrica",
+                   nObs && plural(nObs, "observação", "observações")].filter(Boolean).join(" · ")],
+    };
+    for (const [id, [ok, resumo]] of Object.entries(partes)) {
+      const r = $(id) && $(id).querySelector("[data-resumo]");
+      if (r) r.textContent = resumo || "nada preenchido ainda";
+      const passo = col.querySelector(`.form-steps [data-jump="${id}"]`);
+      if (passo) passo.classList.toggle("ok", !!ok);
+    }
+    // formulário vazio: o convite para começar pela proposta
+    $("comeco").hidden = !!(txt("fornecedor") || uteis.length);
+    // a barra do documento diz QUAL documento é este
+    $("barId").textContent = ($("idPrevDoc") || {}).textContent || "—";
+    $("barTipo").textContent = /^AS/i.test(txt("prefixo")) ? "Autorização de serviço" : "Autorização de fornecimento";
+  } catch (e) { console.warn("mapa da AF:", e); }   // o mapa é guia: nunca derruba o formulário
 }
 
 function onCatalogo() {
@@ -1229,6 +1345,8 @@ function bindConferenciaAF() {
 }
 
 // Identificador e nome do arquivo montados ao vivo — mesma regra do gerar().
+// Chamado também pelo mapa da coluna, a cada mudança: antes só a DIGITAÇÃO o
+// disparava, e uma AF importada ficava com "AF-E-___" no identificador.
 function atualizarIdPrev() {
   const doc = $("idPrevDoc");
   if (!doc) return;
@@ -1332,6 +1450,7 @@ function switchTab(aba) {
   }
   $("acoesGerar").style.display = aba === "gerar" ? "" : "none";
   if (aba === "cpm") onEnterCPM();
+  requestAnimationFrame(ajustarPrevias);   // a prévia da aba que apareceu mede agora
 }
 
 // --------------------------------------------------- cadastros (aba) ------
@@ -1956,7 +2075,7 @@ function marcarModelo() {
       ? "A prévia e o PDF são o mesmo documento."
       : "Esta prévia é o modelo Visual. O PDF será gerado no modelo oficial "
         + "(planilha da Eletronet), com layout diferente. Troque a cortina PDF "
-        + "para \"Visual (HTML)\" se quiser o documento que está vendo.";
+        + "para \"Visual\" se quiser o documento que está vendo.";
   }
 }
 
@@ -2081,6 +2200,7 @@ function schedulePreview() {
   clearTimeout(_tmr);
   _tmr = setTimeout(doPreview, 250);
   guardarRascunho();     // toda mudança que redesenha a prévia também vira rascunho
+  atualizarMapa();       // e o mapa da coluna acompanha (resumos e ✓ de cada parte)
 }
 async function doPreview() {
   const payload = JSON.stringify(collectForm());

@@ -183,11 +183,25 @@ except Exception:
 if not (modelo and os.path.exists(modelo)):
     print("  (modelo .xlsm ausente — parte pulada; ele não vai para o repositório)")
 else:
-    form = formulario(12, 2)                    # o modelo Excel comporta 14 itens
+    # 30 itens: o modelo tem 14 linhas, e o gerador parava na 14ª EM SILÊNCIO
+    # (a AF-E-288 saiu em Excel com 14 dos 21). Agora a tabela cresce.
+    form = formulario(30, 2)
     res = engine.gerar(dict(form, formato="excel", saida=os.path.join(tmp, "af.xlsx")))
     ok("excel: gerou", res.get("ok"), str(res.get("erro")))
     if res.get("ok"):
         conferir("excel", form, engine.importar_af(res["saida"]), com_extras=False)
+        from openpyxl import load_workbook
+        pg1 = load_workbook(res["saida"])["AF-pg1"]
+        lin_total = 43 + 16
+        ok("excel: o total do topo aponta para a linha do total, que desceu",
+           str(pg1["U19"].value) == "=R%d" % lin_total, repr(pg1["U19"].value))
+        ok("excel: cada linha nova tem as mesclagens da tabela",
+           all(f"{a}{r}:{b}{r}" in {str(m) for m in pg1.merged_cells.ranges}
+               for r in (43, 58) for a, b in (("C", "K"), ("N", "O"), ("P", "Q"))))
+        # (o Excel regrava a largura 1 como vazio — que é o próprio padrão 1)
+        ok("excel: a folha cresce em páginas, sem encolher a letra",
+           pg1.page_setup.fitToHeight == 0 and pg1.page_setup.fitToWidth in (None, 1),
+           "%r x %r" % (pg1.page_setup.fitToWidth, pg1.page_setup.fitToHeight))
 
     # O PDF OFICIAL: o modelo impresso pelo próprio Excel. É o desenho mais
     # difícil de ler — o Excel não quebra linha, e o que passa da célula fica
