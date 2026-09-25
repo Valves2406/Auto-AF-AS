@@ -262,6 +262,9 @@ ok("entra só o que o banco não tinha", r.get("incluidos") == 1 and
 novo = next(p for p in TABELAS["pops"] if p["nome"] == "POP NOVO")
 ok("o que já estava no banco NÃO é trocado pelo dado velho", novo["endereco"] == "Rua P, 9", str(novo))
 ok("a diferença fica registrada", r.get("diferentes") == ["POP NOVO"], str(r))
+carimbo2 = json.load(open(ARQ2, encoding="utf-8")).get("banco") or {}
+ok("...no carimbo do próprio arquivo (o log não existe por padrão)",
+   carimbo2.get("diferentes_mantido_o_do_banco") == ["POP NOVO"], str(carimbo2))
 de.USER_JSON = ARQ
 
 # ------------------------------------------------------- 5. sem internet --

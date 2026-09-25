@@ -810,7 +810,7 @@ def levar_para_o_banco() -> dict:
     continua podendo restaurá-los. Tabela já semeada: entra só o que o banco
     NÃO tem; o que já existe lá não é trocado (o banco pode ter sido corrigido
     depois, e um arquivo antigo não pode desfazer a correção). As diferenças
-    ficam no log.
+    ficam anotadas no carimbo do próprio arquivo.
 
     Ao terminar, carimba o arquivo — na próxima abertura não faz nada. Se a
     pasta de rede estiver fora do ar, ou a conexão cair no meio, não carimba:
@@ -864,8 +864,10 @@ def levar_para_o_banco() -> dict:
                  "; ".join(res["diferentes"]))
     try:
         with _editando() as (dd, alvo):
+            # as diferenças ficam no próprio carimbo: o log só existe quando
+            # alguém liga o GERADORAF_LOG, e ninguém liga antes de precisar
             dd["banco"] = {"projeto": cfg["url"], "levado_em": datetime.now().isoformat(timespec="seconds"),
-                           "incluidos": res["incluidos"]}
+                           "incluidos": res["incluidos"], "diferentes_mantido_o_do_banco": res["diferentes"]}
             alvo["salvar"] = True
     except OSError as exc:
         LOG.warning("levei os cadastros ao banco mas não consegui carimbar o arquivo: %s", exc)
