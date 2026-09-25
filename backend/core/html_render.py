@@ -59,16 +59,77 @@ def _t(v) -> str:
 
 
 def _achar(ws, label):
-    for row in ws.iter_rows(min_row=1, max_row=56, max_col=3):
+    # a folha INTEIRA: com notas longas, "LOCAIS DE ENTREGA" desce para além
+    # da linha 56 (AF-E-084: linha 60) e o teto antigo não o achava
+    for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row or 56, 400), max_col=3):
         for c in row:
             if c.value and label.lower() in str(c.value).lower():
                 return c.row, c.column
     return None, None
 
 
+def _txt_linha(ws, r, c0=1, c1=22) -> str:
+    return " ".join(v for v in (_t(ws.cell(r, c).value) for c in range(c0, c1 + 1)) if v)
+
+
+_FECHO_TABELA = re.compile(r"\b(TOTAL FORNECIMENTO|VALOR TOTAL|TOTAL SERVICOS?|TOTAL GERAL)\b")
+_SO_NUMERACAO = re.compile(r"\d+(?:[.,]\d+)*[.:)]?")
+
+
+def _tabela_itens(pg1) -> tuple[int, int]:
+    """Da 1ª linha de item até a linha do total, achadas pelos RÓTULOS.
+
+    Célula fixa não serve: quem faz a AF à mão INSERE linhas para caber mais
+    itens, e tudo o que vem abaixo desce. Com 28-44 fixos, a AF-E-118 (28
+    itens) voltava com 16, e a B51 — onde deveria estar o pagamento — caía em
+    cima do código de um produto ("PRE-SFP-20")."""
+    cab = None
+    for r in range(15, 80):
+        if _t(pg1.cell(r, 1).value).lower().startswith("item") and \
+                "descri" in _txt_linha(pg1, r, 2, 12).lower():
+            cab = r
+            break
+    if cab is None:
+        return 28, 45
+    for r in range(cab + 1, cab + 400):
+        lin = _semac(_txt_linha(pg1, r)).upper()
+        if _FECHO_TABELA.search(lin) or lin.startswith("NOTAS"):
+            return cab + 1, r
+    return cab + 1, cab + 60
+
+
+def _bloco(ws, r0: int, ate: int = 25, vao: bool = False) -> str:
+    """As linhas de texto logo abaixo de `r0`, até a próxima nota numerada
+    ("4" na coluna A) — ou até o primeiro vão, a não ser que `vao` diga que
+    a nota continua depois dele (a condição de pagamento da CIENA tem as
+    subnotas 3.1, 3.2... separadas por linha em branco)."""
+    partes = []
+    for r in range(r0 + 1, r0 + 1 + ate):
+        a, b = _t(ws.cell(r, 1).value), _txt_linha(ws, r, 2)
+        if re.fullmatch(r"\d{1,2}", a) and b:
+            break
+        if re.fullmatch(r"#[A-Z/0!]+[?!]?", b.strip()):     # #VALUE!, #REF!: erro de fórmula
+            continue
+        if a and b and re.fullmatch(r"\d{1,2}[.,]\d{1,2}[.:)]?", a):
+            b = f"{a} {b}"               # a subnota "3.1" mora na coluna A
+        # o TÍTULO da próxima nota, sozinho na linha — não a palavra no meio
+        # do texto ("A garantia para o objeto...")
+        if re.fullmatch(r"(\d{1,2}\s+)?(GARANTIA|PRAZO DE ENTREGA)|NOTAS \(CONTINUA\w*\)?",
+                        _semac(b).upper().strip()):
+            break
+        if not b:
+            if partes and not vao:
+                break
+            continue
+        if not _SO_NUMERACAO.fullmatch(b):       # "0"/"3.1" de fórmula vazia
+            partes.append(b)
+    return "\n".join(partes)
+
+
 def ler_af(caminho: str) -> dict:
     wb = load_workbook(caminho, data_only=True)
     pg1, pg2 = wb["AF-pg1"], wb["AF-pg2"]
+    ini, fim = _tabela_itens(pg1)
     d = {
         "arquivo": os.path.basename(caminho),
         "titulo": _t(pg1["A1"].value) or "AUTORIZAÇÃO DE FORNECIMENTO - AF",
@@ -77,21 +138,50 @@ def ler_af(caminho: str) -> dict:
         "fornecedor": _t(pg1["B10"].value), "endereco": _t(pg1["B12"].value),
         "cep": _t(pg1["B13"].value), "cnpj": _t(pg1["B14"].value), "ie": _t(pg1["B15"].value),
         "moeda": _t(pg1["A19"].value) or "Real", "extenso": _t(pg1["A22"].value),
-        "objeto": _t(pg1["A25"].value), "total": _t(pg1["R43"].value),
-        "total_topo": _t(pg1["U19"].value), "pagamento": _t(pg1["B51"].value), "itens": [],
+        "objeto": _t(pg1["A25"].value), "total": _t(pg1[f"R{fim}"].value),
+        "total_topo": _t(pg1["U19"].value), "pagamento": "", "itens": [],
     }
+    # O bloco do fornecedor pelo RÓTULO da coluna A. Na AF feita à mão ele
+    # está uma linha abaixo do modelo do app (CNPJ na 15, IE na 16), e com as
+    # células fixas a inscrição estadual sumia em 27 de 100 planilhas.
+    for r in range(8, 22):
+        rot = _semac(_t(pg1.cell(r, 1).value)).lower().replace(" ", "")
+        val = _t(pg1.cell(r, 2).value)
+        for chave, pref in (("fornecedor", "fornecedor"), ("endereco", "endereco"),
+                            ("cep", "cep"), ("cnpj", "cnpj"), ("ie", "insc")):
+            if rot.startswith(pref) and val:
+                d[chave] = val
     if not d["cnpj"] and re.match(r"\d{2}\.\d{3}\.\d{3}/", d["ie"]):
         d["cnpj"], d["ie"] = d["ie"], ""
 
+    # A condição de pagamento vem logo depois de "... conforme segue:" — na
+    # folha 1 ou, quando a tabela de itens cresceu muito, na folha 2. Só se o
+    # rótulo não existir é que vale a B51 de antes, e NUNCA se a B51 caiu
+    # dentro da tabela (seria o código de um produto).
+    for ws, de in ((pg1, fim), (pg2, 1)):
+        r0 = next((r for r in range(de, de + 60) if "conforme segue" in _txt_linha(ws, r).lower()), None)
+        if r0:
+            d["pagamento"] = _bloco(ws, r0, vao=True)
+            if ws is pg1:
+                # a nota 3 continua na folha 2, depois de "NOTAS (Continuação)"
+                # — é lá que a CIENA tem as subnotas "3.1 Preços: USD DDP..."
+                rc = next((r for r in range(1, 40)
+                           if "continua" in _txt_linha(pg2, r).lower()
+                           and "notas" in _txt_linha(pg2, r).lower()), None)
+                resto = _bloco(pg2, rc, vao=True) if rc else ""
+                if resto:
+                    d["pagamento"] = (d["pagamento"] + "\n" + resto).strip()
+            break
+    else:
+        d["pagamento"] = _t(pg1["B51"].value) if not (ini <= 51 < fim) else ""
+
     nao_item = ("TOTAL FORNECIMENTO", "VALOR TOTAL", "TOTAL GERAL", "SUBTOTAL",
                 "TOTAL DA PROPOSTA", "NOTAS", "A PROPOSTA DA", "OS PREÇOS")
-    d["total_forn"] = ""
-    for r in range(28, 45):
+    d["total_forn"] = d["total"]
+    for r in range(ini, fim):
         cod, desc = _t(pg1[f"B{r}"].value), _t(pg1[f"C{r}"].value)
         rr = _t(pg1[f"R{r}"].value)
         linha = (cod + desc).upper()
-        if "TOTAL FORNECIMENTO" in linha and rr:
-            d["total_forn"] = rr
         if not (cod or desc):
             continue
         if any(m in linha for m in nao_item):
@@ -102,17 +192,23 @@ def ler_af(caminho: str) -> dict:
             cod=cod, desc=desc, qtd=_t(pg1[f"L{r}"].value), un=_t(pg1[f"M{r}"].value),
             us=_t(pg1[f"N{r}"].value), uc=_t(pg1[f"P{r}"].value), tot=rr))
 
-    gr, gc = _achar(pg2, "GARANTIA")
-    d["garantia"] = _t(pg2.cell(gr + 1, gc).value) if gr else ""
-    pr, pc = _achar(pg2, "PRAZO DE ENTREGA")
-    d["prazo"] = _t(pg2.cell(pr + 1, pc).value) if pr else ""
+    gr, _ = _achar(pg2, "GARANTIA")
+    d["garantia"] = _bloco(pg2, gr, 8) if gr else ""
+    pr, _ = _achar(pg2, "PRAZO DE ENTREGA")
+    d["prazo"] = _bloco(pg2, pr, 8) if pr else ""
     # Faturamento/entrega podem ter VÁRIAS linhas (a AF aceita múltiplos locais):
-    # lê em coluna fixa B (onde o gerador escreve) até a primeira linha vazia.
-    def _secao_multi(row0, chaves, max_linhas=15):
+    # lê em coluna fixa B (onde o gerador escreve) até a primeira linha vazia —
+    # ou até a nota seguinte, que em AF feita à mão vem colada, sem linha vazia
+    # ("Enviar NF para ..." virava um local de entrega). O teto de 15 que havia
+    # aqui cortava as AFs da CIENA e da Precision, com 16 a 20 locais.
+    def _secao_multi(row0, chaves, max_linhas=300):
         out = []
         for r in range(row0, row0 + max_linhas):
             vals = {k: _t(pg2.cell(r, 2 + i).value) for i, k in enumerate(chaves)}
             if not any(vals.values()):
+                break
+            linha = " ".join(vals.values())
+            if re.fullmatch(r"\d{1,2}", _t(pg2.cell(r, 1).value)) or re.search(r"Enviar\s+NF|@", linha):
                 break
             out.append(vals)
         return out

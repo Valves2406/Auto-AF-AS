@@ -63,7 +63,10 @@ backend/              tudo que roda em Python
     extrator_ciena.py o Excel do DDPTool da CIENA, que tem formato próprio
     aprendizado.py    aprende com as SUAS correções onde cada campo fica na proposta
     gerador.py        preenche o template oficial → Excel / PDF (+ proposta anexada)
-    html_render.py    AF e CPM em HTML: a prévia da tela E o PDF "Visual"
+    html_render.py    AF e CPM em HTML: a prévia da tela E o PDF "Visual";
+                      e a leitura de volta de uma AF em Excel
+    leitor_af.py      lê de volta uma AF/AS em PDF (a do app ou a do modelo
+                      Excel) pelo DESENHO do documento: título, rótulo e valor
     trava.py          trava entre processos p/ o cadastro compartilhado na rede
     log.py            geradoraf.log, rotativo
   modelos/            modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx e o logo do
@@ -76,7 +79,7 @@ frontend/             tudo que o navegador carrega
   imagens/            marca, faixa, símbolo, ícone e o logo da INTERFACE
 
 packaging/            AutoAF.spec — receita do PyInstaller
-testes/               34 suítes — ver "Testes" abaixo
+testes/               39 suítes — ver "Testes" abaixo
 ```
 
 Uma armadilha ao mexer nisto: `core/caminhos.py` acha a raiz do projeto subindo

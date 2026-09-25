@@ -242,114 +242,48 @@ def _parse_af_id(af_id: str) -> dict:
 
 
 def _importar_af_pdf(caminho: str) -> dict:
-    """Lê a AF a partir do PDF que o próprio app gera (texto renderizado). Usa só
-    as páginas DA AF (antes da proposta anexada). Melhor-esforço: avisa p/ conferir
-    e não lê faturamento/entrega (estrutura de colunas instável em PDF)."""
-    import re
-    import pdfplumber
-    paginas = []
+    """Lê a AF/AS a partir do PDF — o do próprio app (visual) ou o do modelo
+    Excel. Quem sabe ler é o core/leitor_af.py: ele conhece o desenho do
+    documento, título por título. Aqui só se traduz para o formulário."""
+    from core.leitor_af import ler_af_pdf
     try:
-        with pdfplumber.open(caminho) as pdf:
-            for pg in pdf.pages:
-                t = pg.extract_text() or ""
-                up = t.upper()
-                if "AUTORIZA" in up and ("FORNECIMENTO" in up or "SERVI" in up):
-                    paginas.append(t)
-                elif paginas:
-                    break          # acabou a AF, começou a proposta anexada
+        d = ler_af_pdf(caminho)
     except Exception as exc:
+        LOG.exception("falha ao ler a AF em PDF")
         return {"ok": False, "erro": f"Não consegui ler o PDF: {exc}"}
-    if not paginas:
-        return {"ok": False, "erro": "Não encontrei uma AF neste PDF (título 'AUTORIZAÇÃO DE…' ausente)."}
-    texto = _repara_num_pdf("\n".join(paginas))   # conserta números quebrados pelo pdfplumber
-
-    def acha(pat, grp=1):
-        m = re.search(pat, texto, re.I)
-        return re.sub(r"\s{2,}", " ", m.group(grp)).strip() if m else ""
-
-    af_id = acha(r"(A[FS]-[A-Za-z0-9]+-\d+/\d{4}-[A-Za-z0-9]+(?:-REV\d+)?)")
-    cpm = acha(r"(CP[MS]-[A-Za-z0-9]+-\d+/\d{4}-[A-Za-z0-9]+(?:-REV\d+)?)")
-    ident = _parse_af_id(af_id)
-    tipo = "AS" if (ident["prefixo"].startswith("AS") or "SERVI" in texto.upper()[:120]) else "AF"
-
-    fornecedor = acha(r"Fornecedor:\s*(.+?)(?:\s+Originado|\s+R\$|\n)")
-    if not fornecedor or fornecedor.upper().startswith(("ORIGINADO", "R$", "$")):
-        alt = _EXTRATOR._fornecedor(texto)                 # rótulo veio vazio/ruído
-        # descarta ruído de cabeçalho (CNPJ/Endereço/CEP/Inscr) — vazio é melhor que errado
-        fornecedor = "" if re.search(r"CNPJ|ENDERE|CEP|INSCR|RAZ[ÃA]O", alt.upper()) else alt
-    fornecedor = re.sub(r"\s+R\$.*$", "", fornecedor or "").strip(" .,-")
-    endereco = acha(r"Endere[çc]o:\s*(.+?)(?:\s+Data de Emiss|\n)")
-    cep = _EXTRATOR._cep(texto)
-    cnpj = _EXTRATOR._cnpj(texto)
-    ies = re.findall(r"Insc\.?\s*Est\.?:?\s*([\d][\d.\-/]{5,})", texto, re.I)
-    ie = next((x for x in ies if re.sub(r"\D", "", x) != "115920209117"), "")
-    data_emissao = acha(r"(\d{2}/\d{2}/\d{4})")
-    proposta = _EXTRATOR._numero_proposta(texto)
-    # devolve a CHAVE do catálogo ("Dólar Americano"), não o que estava
-    # escrito na proposta ("Dólar") — senão o <select> da tela não marca a
-    # opção e a conversão para reais não acontece.
-    moeda = moeda_nome(acha(r"\b(Real|D[óo]lar|Euro)\b") or "Real")
-    # o total tem vários rótulos: "VALOR TOTAL", "TOTAL FORNECIMENTO", "TOTAL SERVIÇOS";
-    # se nenhum casar, usa a linha do topo ("Inclusa CIF R$ …") antes do fallback genérico.
-    valor_total = (acha(r"(?:VALOR\s+TOTAL|TOTAL(?:\s+D[OE])?\s+(?:FORNECIMENTO|SERVI[ÇC]OS?))"
-                        r"\s*:?\s*R?\$?\s*([\d.]+,\d{2})")
-                   or acha(r"Inclusa\s+CIF\s*R?\$?\s*([\d.]+,\d{2})")
-                   or _EXTRATOR._valor_total(texto))
-    objeto = acha(r"Objeto do Fornecimento\s+(.+)")
-    garantia = acha(r"GARANTIA\s*\n\s*(.+?)\n")
-    prazo = acha(r"PRAZO DE ENTREGA\s*\n\s*(.+?)\n")
-    pagamento = acha(r"conforme segue:\s*\n\s*(.+?)\n")
-
-    # Itens do PDF — TOLERANTE p/ TODOS os fornecedores: o pdfplumber mangla números
-    # (espaço dentro: "R$ 3 9.688,48") e quebra descrições, então extraímos o robusto
-    # (nº · código · descrição · quantidade) e os preços LIMPOS quando dá; ignora o
-    # resto quebrado (o valor total vem de U19/R43). Filtra as notas (1 A Proposta…).
-    _NOTAS = ("A PROPOSTA", "OS PREÇOS", "CONDIÇÕES DE", "GARANTIA", "PRAZO DE ENTREGA",
-              "DADOS PARA", "LOCAIS DE", "ENVIAR NF", "FORMA DE PAGAMENTO", "AS IMPORTÂNCIAS",
-              "TOTAL FORNECIMENTO", "VALOR TOTAL", "PROPOSTA TÉCNICA", "OBJETO DO")
-    itens = []
-    for ln in texto.splitlines():
-        m = re.match(r"\s*(\d{1,2})\s+(.+)$", ln)       # nº do item + resto
-        if not m:
-            continue
-        resto = m.group(2).strip()
-        if any(x in resto.upper() for x in _NOTAS):
-            continue
-        precos = re.findall(r"R\$\s*([\d.]+,\d{2})", resto)          # preços limpos, se houver
-        tok = resto.split()[0] if resto.split() else ""
-        # código = 1º token SE parece código (mistura letra+dígito/traço, ou SKU "8.005.304")
-        eh_cod = len(tok) >= 3 and bool(
-            re.search(r"[A-Za-z].*[\d\-._/]|[\d\-._/].*[A-Za-z]", tok) or re.match(r"\d+[.\-/]\d", tok))
-        if not (precos or eh_cod):                      # nem preço nem código → não é item (nota/rótulo)
-            continue
-        cod = tok if eh_cod else ""
-        r2 = resto[len(tok):].strip() if eh_cod else resto
-        mq = re.search(r"(?:^|\s)(\d{1,4})\s*(?:UN|UND|PC|PÇ|SV|R\$|$)", r2, re.I)   # quantidade
-        qtd = mq.group(1) if mq else ""
-        desc = (r2[:mq.start()] if mq else r2).strip()
-        desc = re.sub(r"\s*R\$.*$", "", desc).strip()                # remove preços quebrados da desc
-        us, uc, tot = "", "", ""
-        if len(precos) >= 3:
-            us, uc, tot = precos[0], precos[1], precos[-1]
-        elif len(precos) == 2:
-            uc, tot = precos[0], precos[1]
-        elif precos:
-            tot = precos[0]
-        itens.append({"codigo": cod, "descricao": desc, "quantidade": qtd, "unidade": "",
-                      "preco_unit_sem": us, "preco_unit_com": uc, "preco_total_com": tot})
-
+    if not d.get("ok"):
+        return d
+    if not (d.get("af_id") or d.get("fornecedor")):
+        return {"ok": False, "erro": "Não encontrei uma AF neste PDF (nem o número da "
+                                     "autorização nem o fornecedor)."}
+    ident = _parse_af_id(d.get("af_id", ""))
+    tipo = "AS" if (ident["prefixo"].startswith("AS")
+                    or "SERVI" in (d.get("titulo") or "").upper()) else "AF"
+    avisos = list(d.get("avisos") or [])
+    # A CONTA CONFERE A LEITURA. Soma dos itens = valor total: se fecha, tudo
+    # o que tem preço foi lido; se não fecha, alguém precisa olhar.
+    tot = brl_para_float(d.get("valor_total"))
+    soma = sum(brl_para_float(it.get("preco_total_com")) or 0 for it in d.get("itens", []))
+    if tot and any(it.get("preco_total_com") for it in d.get("itens", [])) and abs(soma - tot) > 0.05:
+        avisos.append(f"A soma dos itens ({float_para_brl(soma)}) não fecha com o valor total "
+                      f"da AF ({float_para_brl(tot)}) — confira os itens.")
     return {
-        "ok": True, "tipo": tipo, "af_id": af_id, "cpm": cpm,
-        "fornecedor": fornecedor, "cnpj": cnpj, "insc_est": ie,
-        "endereco": endereco, "cep": cep,
-        "numero_proposta": proposta, "data_emissao": data_emissao,
-        "valor_total": valor_total, "objeto": objeto, "moeda": moeda,
-        "garantia": garantia, "prazo_entrega": prazo, "condicao_pagamento": pagamento,
+        "ok": True, "tipo": tipo, "af_id": d.get("af_id", ""), "cpm": d.get("cpm", ""),
+        "fornecedor": d.get("fornecedor", ""), "cnpj": d.get("cnpj", ""),
+        "insc_est": d.get("insc_est", ""), "endereco": d.get("endereco", ""), "cep": d.get("cep", ""),
+        "numero_proposta": d.get("numero_proposta", ""), "data_emissao": d.get("data_emissao", ""),
+        "data_proposta": d.get("data_proposta", ""),
+        "valor_total": d.get("valor_total", ""), "objeto": d.get("objeto", ""),
+        # a CHAVE do catálogo ("Dólar Americano"), não o que está escrito —
+        # senão o <select> da tela não marca a opção
+        "moeda": moeda_nome(d.get("moeda") or "Real"),
+        "garantia": d.get("garantia", ""), "prazo_entrega": d.get("prazo_entrega", ""),
+        "condicao_pagamento": d.get("condicao_pagamento", ""),
         "prefixo": ident["prefixo"], "numero": ident["numero"], "ano": ident["ano"],
         "modificacao": ident["modificacao"], "revisao": ident["revisao"],
-        "itens": itens, "faturamentos": [], "entregas": [],
-        "avisos": ["Importado de PDF (melhor-esforço) — confira itens e valores.",
-                   "Faturamento e locais de entrega não são lidos do PDF; refaça na seção Locais se precisar."],
+        "itens": d.get("itens", []), "faturamentos": d.get("faturamentos", []),
+        "entregas": d.get("entregas", []), "observacoes": d.get("observacoes", []),
+        "avisos": avisos,
     }
 
 
@@ -363,26 +297,6 @@ def _st(v) -> str:
     if isinstance(v, float) and v.is_integer():
         return str(int(v))
     return str(v).strip()
-
-
-def _repara_num_pdf(texto: str) -> str:
-    """O pdfplumber quebra números BR inserindo UM espaço logo após o dígito da
-    frente: "R$ 7 1.898,83" → 71.898,83 · "$ 2 18.636,36" → 218.636,36 (CIENA em
-    dólar) · "R$ 5 10,14" → 510,14. Junta o dígito solto ao restante e reformata.
-    Só age em "<símbolo> <um dígito> <resto que termina em ,dd>", então não toca
-    em números já limpos ("R$ 119.999,92") nem em "R$ 5,26" (banda cambial)."""
-    import re
-
-    def _fix(m):
-        sym = m.group(1)                                # preserva R$ / US$ / $
-        junto = m.group(2) + m.group(3)                 # "2" + "18.636,36"
-        try:
-            i, d = junto.replace(".", "").split(",")
-            return f"{sym} " + float_para_brl(float(f"{i}.{d}"))
-        except (ValueError, TypeError):
-            return m.group(0)
-
-    return re.sub(r"(US\$|R\$|\$)\s*(\d)\s+([.\d]*\d,\d{2})", _fix, texto)
 
 
 def _brl_import(v) -> str:

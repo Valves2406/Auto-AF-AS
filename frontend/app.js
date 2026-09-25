@@ -2322,8 +2322,9 @@ function casarFornecedorCatalogo(p) {
 }
 
 // ----------------------------------------------- CAMINHO INVERSO: ler AF ---
-// Lê uma AF/AS já gerada (.xlsx) e traz TODAS as informações de volta ao
-// formulário — p/ revisar, gerar relato (a prévia) e reexportar.
+// Lê uma AF/AS já gerada (PDF ou Excel) e traz TODAS as informações de volta
+// ao formulário — p/ revisar, gerar relato (a prévia) e reexportar. Quem sabe
+// ler o PDF é o backend/core/leitor_af.py.
 function selectValue(id, v) {
   if (!v) return;
   const sel = $(id);
@@ -2341,13 +2342,13 @@ async function importarAF() {
     if (!d.ok) { setStatus("Não consegui importar: " + (d.erro || "?"), "erro"); return; }
     aplicarAF(d);
     const ni = (d.itens || []).length, nf = (d.faturamentos || []).length, ne = (d.entregas || []).length;
-    const avs = (d.avisos || []).join(" • ");
+    // um "⚠" por aviso: é ele que a barra de status usa para quebrar a linha
+    const avs = (d.avisos || []).map(a => "  ⚠ " + a).join("");
     const cpm = (d.tipo === "CPM" || d.tipo === "CPS");
     const idDoc = cpm ? (d.cpm_id || d.af_id) : d.af_id;
     const detalhe = cpm ? "dados preenchidos na aba CPM/CPS — confira e reexporte"
       : `${ni} item(ns) · ${nf} faturamento(s) · ${ne} entrega(s). Revise e reexporte se quiser`;
-    setStatus(`✔ ${d.tipo || "AF"} ${idDoc || ""} importada — ${detalhe}.`
-      + (avs ? "  ⚠ " + avs : ""), avs ? "aviso" : "ok");
+    setStatus(`✔ ${d.tipo || "AF"} ${idDoc || ""} importada — ${detalhe}.` + avs, avs ? "aviso" : "ok");
   } catch (e) { setStatus("Erro ao importar AF: " + e, "erro"); }
   $("fileAF").value = "";
 }
@@ -2359,7 +2360,7 @@ function aplicarAF(d) {
   $("objeto").value = d.objeto || "";
   setDur("garantia", d.garantia, "Meses"); setDur("prazo", d.prazo_entrega, "Dias");
   selectValue("moeda", d.moeda);
-  $("dataProp").value = "";   // a AF não guarda a data da proposta
+  $("dataProp").value = d.data_proposta || "";   // o PDF visual traz; o modelo Excel, não
   $("dataEmis").value = d.data_emissao || new Date().toLocaleDateString("pt-BR");
   // Identificador (a partir do nº da AF)
   selectValue("prefixo", d.prefixo); $("numero").value = d.numero || ""; $("ano").value = d.ano || "";

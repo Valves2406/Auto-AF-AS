@@ -58,6 +58,8 @@ SUITES = [
     ("colunas_e_estacoes", "Coluna pelo cabecalho e quadro de estacoes como entrega"),
     ("arrastar_proposta", "Arrastar a proposta para a tela le o arquivo"),
     ("orcamento_mei", "Orcamento de MEI e nome de arquivo fora do Latin-1"),
+    ("ler_af_ida_e_volta", "Ler a AF de volta: o que o app escreveu volta igual"),
+    ("leitor_af_regras", "As regras do leitor de AF nos casos que ja quebraram"),
 ]
 
 

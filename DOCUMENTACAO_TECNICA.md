@@ -37,17 +37,19 @@
 ### Estrutura de arquivos
 ```
 GeradorAF/
-├─ app.py                  # servidor + lançador do Edge (heartbeat de ciclo de vida)
-├─ engine.py               # API Python (a "ponte" de tudo)
-├─ core/
-│  ├─ extrator.py          # lê a proposta → DadosProposta (calibrado)
-│  ├─ gerador.py           # preenche template + Excel COM + merge PDF
-│  ├─ html_render.py       # prévia/estilo Visual (AF e CPM) em HTML
-│  ├─ modelos.py           # DadosProposta, ItemAF, MOEDAS, valor_por_extenso
-│  └─ dados_eletronet.py   # catálogo (do .xlsm) + cadastros do usuário (JSON) + import em massa
-├─ web/ (index.html, app.css, app.js)
-├─ assets/ (modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx, eletronet_logo.jpeg)
-├─ saidas/                 # documentos gerados
+├─ backend/
+│  ├─ app.py               # servidor + lançador do Edge (heartbeat de ciclo de vida)
+│  ├─ engine.py            # API Python (a "ponte" de tudo)
+│  ├─ core/
+│  │  ├─ extrator.py       # lê a proposta → DadosProposta (calibrado)
+│  │  ├─ gerador.py        # preenche template + Excel COM + merge PDF
+│  │  ├─ html_render.py    # prévia/estilo Visual (AF e CPM) em HTML + leitura de AF em Excel
+│  │  ├─ leitor_af.py      # lê de volta a AF/AS em PDF (visual ou modelo Excel)
+│  │  ├─ modelos.py        # DadosProposta, ItemAF, MOEDAS, valor_por_extenso
+│  │  └─ dados_eletronet.py # catálogo (do .xlsm) + cadastros do usuário (JSON) + import em massa
+│  └─ modelos/ (modelo_af.xlsm, modelo_as.xlsm, modelo_cpm.xlsx, eletronet_logo.jpeg)
+├─ frontend/ (index.html, app.css, app.js, fontes/, imagens/)
+├─ saída gerador/          # documentos gerados
 └─ Gerar AF.bat            # launcher 1-clique (usa o Python do sistema)
 ```
 
@@ -58,6 +60,13 @@ GeradorAF/
 1. **Gerar AF/AS:** ler proposta (upload) → `extrair` → autocompleta o formulário → o usuário revisa/edita → `gerar` (PDF oficial / Visual / Excel / CSV) → salva em `saidas/` e anexa a proposta.
 2. **CPM/CPS:** é uma **extensão da AF** — reaproveita fornecedor, valor, moeda, proposta, prazo, pagamento e local. Textos padronizados (finalidade/justificativa/consequências) por cenário (sem cliente / com cliente / vários clientes), alçada por faixa de valor, e a proposta também é anexada.
 3. **Cadastros:** individual (formulário) ou **em massa** (planilha Excel-modelo → preencher → importar).
+4. **Ler uma AF de volta** (botão Importar): PDF ou Excel → `importar_af` → formulário preenchido para revisar e reexportar. A AF é documento **nosso**, então a leitura segue o desenho dele, não adivinha:
+   - **PDF visual** (o que o app gera): título de seção, rótulo e valor têm estilos diferentes (negrito azul / regular cinza / seminegrito escuro) e o PDF os preserva palavra a palavra — é o peso da fonte que separa rótulo de valor, não a posição nem a cor (há PDF em CMYK);
+   - **PDF do modelo Excel**: rótulos com dois-pontos, notas numeradas em sequência e borda em cada célula; o texto que o Excel deixa transbordar da célula é devolvido à coluna certa;
+   - **Excel**: cada seção achada pelo RÓTULO, não por célula fixa (AF feita à mão tem linhas inseridas);
+   - faturamento e local de entrega voltam como o **registro do catálogo** (pelo CNPJ da filial e pela sigla do POP); o texto do PDF só vale quando o registro não existe;
+   - a soma dos itens confere a leitura: se não fecha com o valor total, a tela avisa.
+   Medido em 93 AFs reais com PDF e Excel da mesma autorização; `testes/ler_af_ida_e_volta.py` gera AFs pelas três rotas e lê de volta.
 
 ---
 
