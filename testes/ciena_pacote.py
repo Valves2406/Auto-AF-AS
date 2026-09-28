@@ -19,6 +19,8 @@ O QUE ESTE TESTE GUARDA
   • o lugar do site sai sem o equipamento ("Serra Exemplo WS5" → Serra Exemplo), um por
     lugar; a coluna das licenças não é lugar, mas o estado dela fatura;
   • site sem nome de lugar ("WS5" em SP) não vira entrega — só a UF de faturamento;
+  • o objeto sai das categorias do Resumo (CapEx → AF, OpEx → AS), e não de
+    descrições de item emendadas e cortadas com "…";
   • a tela tem o seletor de projeto na barra da CIENA.
 
 Planilhas montadas aqui, com dados FICTÍCIOS (o repositório é público).
@@ -50,9 +52,17 @@ def ok(nome, cond, extra=""):
         falhas.append(nome)
 
 
-def aba_resumo(wb, nome, titulo, data):
+def aba_resumo(wb, nome, titulo, data, capex=(), opex=()):
     ws = wb.create_sheet(nome)
     ws["D4"], ws["D5"], ws["D6"], ws["D9"] = "Resumo de Preços", "DATA:", data, titulo
+    r = 11
+    for rotulo, linhas in (("CapEx", capex), ("OpEx", opex)):
+        if not linhas:
+            continue
+        ws.cell(r, 4, rotulo); r += 1
+        for cat, valor in linhas:
+            ws.cell(r, 4, cat); ws.cell(r, 5, valor); r += 1
+        ws.cell(r, 4, "TOTAL - USD"); ws.cell(r, 5, sum(v for _, v in linhas)); r += 2
     return ws
 
 
@@ -136,7 +146,9 @@ print("\n2. PACOTE com dois projetos (cada um, AF + AS)")
 wb = Workbook(); wb.remove(wb.active)
 b = wb.create_sheet("Bundle_Exemplo")
 b["D5"], b["D6"], b["D9"] = "DATA:", datetime(2026, 9, 1), "Bundle 2 Projetos - Exemplo A / Exemplo B"
-aba_resumo(wb, "Resumo Exemplo A", "Projeto Exemplo A", datetime(2026, 8, 2))
+aba_resumo(wb, "Resumo Exemplo A", "Projeto Exemplo A", datetime(2026, 8, 2),
+           capex=[("Sistema de Gerência Exemplo", 1000.0), ("Equipamento Exemplo (HW, SW)", 1200.0)],
+           opex=[("Serviços de Instalação", 500.0)])
 aba_resumo(wb, "Resumo Exemplo B", "Transponders Exemplo B", datetime(2026, 8, 3))
 aba_detalhe(wb, "Detalhamento Exemplo A", "Projeto Exemplo A", ["SP", "MG"],
             [("Serra Exemplo WS5\n SEX_VEX", "MG"), ("Vale Exemplo 6500\n VEX_SEX", "MG")],
@@ -167,6 +179,12 @@ if d:
     ok("projeto B: 'WS5' não é lugar — sem entrega, mas fatura em SP",
        pj[1]["entregas"] == [] and pj[1]["ufs"] == ["SP"] and pj[1]["sem_lugar"], str(pj[1]))
     ok("os campos de sempre trazem o 1º projeto", d["af"] is pj[0]["af"] and d["projeto"] == "Projeto Exemplo A")
+    ok("objeto pelas categorias do Resumo (CapEx → AF, OpEx → AS)",
+       pj[0]["af"]["objeto"] == "Projeto Exemplo A: Sistema de Gerência Exemplo e Equipamento Exemplo (HW, SW)."
+       and pj[0]["as"]["objeto"] == "Projeto Exemplo A: Serviços de Instalação.",
+       "%r / %r" % (pj[0]["af"]["objeto"], pj[0]["as"]["objeto"]))
+    ok("sem categorias no Resumo, o objeto sai dos itens, como antes",
+       pj[1]["af"]["objeto"].startswith("WAVESERVER EXEMPLO CHASSIS"), pj[1]["af"]["objeto"])
 
 # ------------------------------------------------ 3. quantidade lida errada -
 print("\n3. Quantidade que não fecha com o total")

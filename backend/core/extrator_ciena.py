@@ -205,6 +205,36 @@ def _titulo(linhas: list[tuple]) -> str:
     return ""
 
 
+def _categorias(r_linhas: list[tuple]) -> dict:
+    """As linhas de CapEx e de OpEx da aba Resumo ("Equipamento 6500 (HW, SW)",
+    "Serviços de Instalação"…): o que a própria CIENA diz que está vendendo,
+    em poucas palavras — objeto melhor que emendar descrição de item."""
+    out, bloco = {"af": [], "as": []}, None
+    for row in r_linhas:
+        for j, v in enumerate(row):
+            t = _txt(v)
+            if not t:
+                continue
+            tu = t.upper()
+            if tu == "CAPEX":
+                bloco = "af"
+            elif tu == "OPEX":
+                bloco = "as"
+            elif tu.startswith(("TOTAL", "GRAN TOTAL", "INFORMATIVO")):
+                bloco = None
+            elif bloco and _num(row[j + 1] if j + 1 < len(row) else None) is not None:
+                out[bloco].append(t)
+            break                                     # uma célula de texto por linha
+    return out
+
+
+def _objeto(titulo: str, categorias: list[str], itens: list[dict]) -> str:
+    if not categorias:
+        return _resumo(itens)
+    lista = categorias[0] if len(categorias) == 1 else ", ".join(categorias[:-1]) + " e " + categorias[-1]
+    return f"{titulo}: {lista}." if titulo else lista + "."
+
+
 def _data(ws_linhas: list[tuple]) -> str:
     """A data que vem logo abaixo de 'DATA:' na aba Resumo."""
     for i, row in enumerate(ws_linhas):
@@ -252,6 +282,9 @@ def ler_ciena(caminho: str) -> dict | None:
                 titulo = next((_txt(v) for row in r_linhas for v in row
                                if _txt(v).lower().startswith("projeto")), "")
             p.update(projeto=titulo, data=_data(r_linhas), aba=aba)
+            cats = _categorias(r_linhas)
+            for lado in ("af", "as"):
+                p[lado]["objeto"] = _objeto(titulo, cats[lado], p[lado]["itens"])
             projetos.append(p)
         if not projetos:
             return None
