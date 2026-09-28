@@ -189,8 +189,9 @@ def restaurar(tipo: str, registro: dict) -> dict:
 def extrair(caminho: str) -> dict:
     if not caminho or not os.path.exists(caminho):
         return {"ok": False, "erro": f"Arquivo não encontrado: {caminho}"}
-    # Proposta CIENA vem em EXCEL (DDPTool) e gera DOIS documentos: AF (equipamento)
-    # e AS (serviço). Detecta e devolve os dois lados; senão, avisa.
+    # Proposta CIENA vem em EXCEL (DDPTool): cada projeto gera DOIS documentos, AF
+    # (equipamento) e AS (serviço) — o pacote com 3 projetos, seis. Detecta e
+    # devolve os projetos com os dois lados; senão, avisa.
     if caminho.lower().endswith((".xlsx", ".xlsm")):
         try:
             from core.extrator_ciena import ler_ciena
@@ -209,16 +210,24 @@ def extrair(caminho: str) -> dict:
             # A planilha diz para ONDE vai cada coisa; a nota sai da filial do
             # estado que recebe. A CIENA entra por este caminho próprio e não
             # passava pela regra de faturamento por UF que as outras já usam.
+            # No PACOTE, cada projeto tem os seus destinos e as suas filiais.
             try:
                 ex_uf = ExtratorProposta()
-                # a planilha dá o nome do site; o cadastro dá o endereço
-                ci["entregas"] = ex_uf.completar_entregas(ci.get("entregas") or [])
-                ci["faturamentos"] = ex_uf._faturamento_das_ufs(ci.get("entregas") or [], [])
+                for pj in ci.get("projetos") or [ci]:
+                    # a planilha dá o nome do site; o cadastro dá o endereço
+                    pj["entregas"] = ex_uf.completar_entregas(pj.get("entregas") or [])
+                    # filial por UF que RECEBE algo — inclui a coluna das
+                    # licenças e o site sem nome de lugar ("WS5" em SP)
+                    por_uf = [{"uf": u} for u in pj.get("ufs") or []] or pj.get("entregas") or []
+                    pj["faturamentos"] = ex_uf._faturamento_das_ufs(por_uf, [])
+                if ci.get("projetos"):
+                    ci["entregas"] = ci["projetos"][0]["entregas"]
+                    ci["faturamentos"] = ci["projetos"][0]["faturamentos"]
             except Exception as exc:
                 LOG.warning("não consegui casar as filiais da CIENA: %s", exc)
             return ci
-        return {"ok": False, "erro": "Excel não reconhecido — esperava proposta CIENA com as abas "
-                                     "'Resumo de Preços' e 'Detalhamento de Preços'."}
+        return {"ok": False, "erro": "Excel não reconhecido — esperava proposta CIENA com abas "
+                                     "'Resumo …' e 'Detalhamento …' (de preços, ou uma por projeto)."}
     try:
         ex = ExtratorProposta()
         d = dataclasses.asdict(ex.extrair(caminho))

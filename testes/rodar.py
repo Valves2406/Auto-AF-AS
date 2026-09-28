@@ -64,6 +64,7 @@ SUITES = [
     ("ler_af_ida_e_volta", "Ler a AF de volta: o que o app escreveu volta igual"),
     ("leitor_af_regras", "As regras do leitor de AF nos casos que ja quebraram"),
     ("banco_da_equipe", "Cadastros no banco da equipe, com e sem internet"),
+    ("ciena_pacote", "CIENA: um projeto e o pacote com varios (AF + AS cada)"),
 ]
 
 

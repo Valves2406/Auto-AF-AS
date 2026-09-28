@@ -80,7 +80,7 @@ frontend/             tudo que o navegador carrega
   imagens/            marca, faixa, símbolo, ícone e o logo da INTERFACE
 
 packaging/            AutoAF.spec — receita do PyInstaller
-testes/               40 suítes — ver "Testes" abaixo
+testes/               41 suítes — ver "Testes" abaixo
 ```
 
 Uma armadilha ao mexer nisto: `core/caminhos.py` acha a raiz do projeto subindo

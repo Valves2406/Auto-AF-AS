@@ -2396,9 +2396,19 @@ async function lerProposta(soltos) {
 
 function aplicarCienaEStatus(p) {
   aplicarCiena(p);
-  setStatus(`✔ Proposta CIENA importada${p.projeto ? " (" + p.projeto + ")" : ""}. `
-    + `AF (equipamento) = US$ ${p.af.valor_total} · AS (serviço) = US$ ${p.as.valor_total}. `
-    + `Mostrando a AF — use 🔀 para a AS.`, "ok");
+  const n = (p.projetos || []).length;
+  if (n > 1) {
+    setStatus(`✔ Pacote CIENA importado: ${n} projetos → ${2 * n} documentos (uma AF e uma AS por projeto). `
+      + `Mostrando a AF do 1º projeto — escolha o projeto na barra da CIENA e use 🔀 para a AS.`, "ok");
+  } else {
+    setStatus(`✔ Proposta CIENA importada${p.projeto ? " (" + p.projeto + ")" : ""}. `
+      + `AF (equipamento) = US$ ${p.af.valor_total} · AS (serviço) = US$ ${p.as.valor_total}. `
+      + `Mostrando a AF — use 🔀 para a AS.`, "ok");
+  }
+  // quantidades × preços que não fecham com o total da planilha: avisa, com o projeto
+  const avisos = (p.projetos || [p]).flatMap(pj => ["af", "as"].flatMap(l =>
+    ((pj[l] || {}).avisos || []).map(a => `${pj.projeto || "Proposta"} (${l.toUpperCase()}): ${a}`)));
+  if (avisos.length) setStatus("⚠ " + avisos.join("  ⚠ "), "aviso");
   $("filePdf").value = "";
 }
 
@@ -2441,29 +2451,38 @@ function aplicarProposta(p) {
   return forn;
 }
 
-// ---- Proposta CIENA (Excel/DDPTool): 1 proposta → AF (equipamento) + AS (serviço) ----
+// ---- Proposta CIENA (Excel/DDPTool): cada projeto → AF (equipamento) + AS (serviço) ----
+// A planilha de UM projeto dá dois documentos; o PACOTE ("Bundle") traz vários
+// projetos, e cada um dá os seus dois — 3 projetos, 6 documentos. A barra da
+// CIENA escolhe o projeto e o 🔀 troca entre a AF e a AS dele.
 let _ciena = null;
 function aplicarCiena(p) {
-  // a planilha traz os destinos e, por eles, as filiais de faturamento
-  _ciena = { entregas: p.entregas || [], faturamentos: p.faturamentos || [],
-    af: p.af, as: p.as,
+  const projetos = (p.projetos && p.projetos.length) ? p.projetos
+    : [{ projeto: p.projeto, entregas: p.entregas, faturamentos: p.faturamentos, af: p.af, as: p.as }];
+  _ciena = { projetos, i: 0,
     comum: { fornecedor: p.fornecedor, cnpj: p.cnpj, insc_est: p.insc_est,
              endereco: p.endereco, cep: p.cep, moeda: p.moeda || "Dólar Americano",
-             prazo: p.prazo_entrega || "", projeto: p.projeto || "", caminho_pdf: p.caminho_pdf || "" } };
+             prazo: p.prazo_entrega || "", caminho_pdf: p.caminho_pdf || "",
+             pacote: p.pacote || "" } };
   mostrarLadoCiena("af");                     // começa na AF (equipamento)
 }
+function projetoCiena() { return _ciena.projetos[_ciena.i] || _ciena.projetos[0]; }
 function mostrarLadoCiena(lado) {
   if (!_ciena) return;
   _ciena.atual = lado;
-  const s = _ciena[lado], c = _ciena.comum;
+  const pj = projetoCiena(), s = pj[lado] || {}, c = _ciena.comum;
   $("fornecedor").value = c.fornecedor || ""; $("cnpj").value = c.cnpj || ""; $("ie").value = c.insc_est || "";
   $("endereco").value = c.endereco || ""; $("cep").value = c.cep || "";
   if (c.moeda) $("moeda").value = c.moeda;    // Dólar Americano
   $("prefixo").value = (lado === "af") ? "AF-E" : "AS-E";   // troca AF ↔ AS
   // Os destinos valem para os DOIS lados: o serviço é executado onde o
   // equipamento é entregue. E as filiais saem da UF de cada destino.
-  if (_ciena.entregas.length) { entregas = _ciena.entregas.slice(); renderEntregas(); }
-  if (_ciena.faturamentos.length) { faturamentos = _ciena.faturamentos.slice(); renderFaturamentos(); }
+  // No pacote, trocar de projeto troca os destinos TAMBÉM quando o projeto
+  // novo não tem nenhum — senão ficariam os do projeto anterior.
+  const varios = _ciena.projetos.length > 1;
+  if (varios || (pj.entregas || []).length) { entregas = (pj.entregas || []).slice(); renderEntregas(); }
+  if (varios || (pj.faturamentos || []).length) { faturamentos = (pj.faturamentos || []).slice(); renderFaturamentos(); }
+  if (pj.data) $("dataProp").value = pj.data;
   $("prazoUn").value = "Livre"; $("prazoNum").value = c.prazo || ""; syncPronta();   // "24~28 semanas"
   $("objeto").value = s.objeto || "";
   $("valor").value = s.valor_total || "";
@@ -2477,10 +2496,22 @@ function renderCienaBar() {
   const bar = $("cienaBar"); if (!bar) return;
   if (!_ciena) { bar.hidden = true; return; }
   bar.hidden = false;
-  const af = _ciena.atual === "af", lado = af ? _ciena.af : _ciena.as;
-  const proj = _ciena.comum.projeto ? ` · ${escapeHtml(_ciena.comum.projeto)}` : "";
-  $("cienaInfo").innerHTML = `📦 <b>Proposta CIENA</b>${proj} — mostrando <b>${af ? "AF (equipamento)" : "AS (serviço)"}</b> · US$ ${escapeHtml(lado.valor_total || "—")}`;
+  const pj = projetoCiena(), af = _ciena.atual === "af", lado = (af ? pj.af : pj.as) || {};
+  const n = _ciena.projetos.length;
+  const proj = n > 1 ? "" : (pj.projeto ? ` · ${escapeHtml(pj.projeto)}` : "");
+  $("cienaInfo").innerHTML = `📦 <b>${n > 1 ? `Pacote CIENA — ${n} projetos, ${2 * n} documentos` : "Proposta CIENA"}</b>${proj}`
+    + ` — mostrando <b>${af ? "AF (equipamento)" : "AS (serviço)"}</b> · US$ ${escapeHtml(lado.valor_total || "—")}`;
   $("btnCienaTrocar").textContent = af ? "🔀 Trocar para AS (serviço)" : "🔀 Trocar para AF (equipamento)";
+  const sel = $("cienaProjeto");
+  if (sel) {
+    sel.hidden = n < 2;
+    if (n > 1) {
+      sel.innerHTML = _ciena.projetos.map((p, i) =>
+        `<option value="${i}">${i + 1}. ${escapeHtml(p.projeto || "Projeto " + (i + 1))}</option>`).join("");
+      sel.value = String(_ciena.i);
+      sel.onchange = () => { _ciena.i = +sel.value; mostrarLadoCiena(_ciena.atual || "af"); };
+    }
+  }
 }
 
 // Reconhece de qual fornecedor é a proposta (CNPJ é o mais confiável; senão pelo
