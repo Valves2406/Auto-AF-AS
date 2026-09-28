@@ -10,6 +10,7 @@ lá — uma lista só para o setor inteiro; o .xlsm fica como reserva sem conex�
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -802,25 +803,60 @@ def _achar_no_banco(chave: str, registro: dict, ocultos: bool = False) -> list[d
     return [e for e in lista if _casa(e, registro, ids)] if ids else []
 
 
+def _impressao(chave: str, reg: dict) -> str:
+    """Identifica o CONTEÚDO de um cadastro do arquivo: muda se alguém o editar."""
+    txt = chave + "|" + "|".join(_norm_id((reg or {}).get(k)) for k in _MODELOS[chave])
+    return hashlib.sha1(txt.encode("utf-8")).hexdigest()[:12]
+
+
+def _impressoes(d: dict) -> dict:
+    return {ch: {_impressao(ch, e): e for e in (d.get(ch) or []) if isinstance(e, dict)}
+            for ch in _banco.TABELAS}
+
+
 def levar_para_o_banco() -> dict:
-    """Leva para o banco, UMA VEZ, o que o arquivo de cadastros em uso tem.
+    """Leva para o banco o que o arquivo de cadastros em uso tem de NOVO.
 
-    Tabela vazia no banco: vai a lista inteira que esta máquina enxerga
-    (catálogo do modelo + cadastros − ocultos), e os ocultos vão ocultos — o ↩
-    continua podendo restaurá-los. Tabela já semeada: entra só o que o banco
-    NÃO tem; o que já existe lá não é trocado (o banco pode ter sido corrigido
-    depois, e um arquivo antigo não pode desfazer a correção). As diferenças
-    ficam anotadas no carimbo do próprio arquivo.
+    Primeira vez: tabela vazia no banco recebe a lista inteira que esta máquina
+    enxerga (catálogo do modelo + cadastros − ocultos), e os ocultos vão ocultos
+    — o ↩ continua podendo restaurá-los. Tabela já semeada recebe só o que o
+    banco NÃO tem; o que já existe lá não é trocado (o banco pode ter sido
+    corrigido depois, e um arquivo antigo não pode desfazer a correção). As
+    diferenças ficam anotadas no carimbo do próprio arquivo.
 
-    Ao terminar, carimba o arquivo — na próxima abertura não faz nada. Se a
-    pasta de rede estiver fora do ar, ou a conexão cair no meio, não carimba:
-    na próxima abertura completa o que faltou, sem duplicar o que já foi.
+    Depois, o carimbo guarda a IMPRESSÃO de cada cadastro já visto. É o que
+    cobre a TRANSIÇÃO: quem ainda abre a versão antiga do app grava no arquivo,
+    não no banco — e a próxima versão nova que olhar o arquivo leva só o que
+    apareceu desde a última vez. Nada novo: nem pergunta ao banco. (Ocultar e
+    apagar feitos na versão antiga não são levados; só inclusões e edições que
+    criam um cadastro que o banco não tem.)
+
+    Tudo acontece com o arquivo TRAVADO: duas máquinas vendo a mesma novidade
+    ao mesmo tempo não a incluem duas vezes. Conexão caindo no meio: não
+    carimba, e a próxima olhada completa o que faltou sem duplicar.
     """
     cfg = _banco.configuracao()
     if not cfg or not os.path.exists(USER_JSON):
         return {}
     d = _usuario()
-    if not d or (d.get("banco") or {}).get("projeto") == cfg["url"]:
+    if not d:
+        return {}
+    carimbo = d.get("banco") or {}
+    if carimbo.get("projeto") == cfg["url"] and "vistos" in carimbo:
+        todas = set().union(*(set(v) for v in _impressoes(d).values()))
+        if todas <= set(carimbo["vistos"]):
+            return {}                  # nada novo no arquivo: nem pergunta ao banco
+    with _editando() as (d, alvo):     # relê travado: outra máquina pode ter levado agora
+        return _levar(cfg, d, alvo)
+
+
+def _levar(cfg: dict, d: dict, alvo: dict) -> dict:
+    carimbo = d.get("banco") or {}
+    ja_levado = carimbo.get("projeto") == cfg["url"]
+    vistos = set(carimbo.get("vistos") or []) if ja_levado else set()
+    impressoes = _impressoes(d)
+    todas = set().union(*(set(v) for v in impressoes.values()))
+    if ja_levado and "vistos" in carimbo and todas <= vistos:
         return {}
     _banco.esquecer()
     res = {"incluidos": 0, "ocultados": 0, "ja_estavam": 0, "diferentes": [], "semeadas": []}
@@ -845,7 +881,9 @@ def levar_para_o_banco() -> dict:
         no_banco = [{k: _txt(r.get(k)) for k in _MODELOS[chave]} for r in atuais]
         ambig = _ambiguas(no_banco, chave)
         novos = []
-        for e in d.get(chave) or []:
+        for imp, e in impressoes[chave].items():
+            if imp in vistos:          # já passou por aqui numa olhada anterior
+                continue
             reg = _linha_do_banco(chave, e)
             ids = [k for k in _IDS.get(chave, ()) if reg.get(k)]
             if not ids:
@@ -862,17 +900,48 @@ def levar_para_o_banco() -> dict:
     if res["diferentes"]:
         LOG.info("ao levar o arquivo para o banco, vale o do banco para: %s",
                  "; ".join(res["diferentes"]))
-    try:
-        with _editando() as (dd, alvo):
-            # as diferenças ficam no próprio carimbo: o log só existe quando
-            # alguém liga o GERADORAF_LOG, e ninguém liga antes de precisar
-            dd["banco"] = {"projeto": cfg["url"], "levado_em": datetime.now().isoformat(timespec="seconds"),
-                           "incluidos": res["incluidos"], "diferentes_mantido_o_do_banco": res["diferentes"]}
-            alvo["salvar"] = True
-    except OSError as exc:
-        LOG.warning("levei os cadastros ao banco mas não consegui carimbar o arquivo: %s", exc)
+    # as diferenças ficam no próprio carimbo: o log só existe quando alguém
+    # liga o GERADORAF_LOG, e ninguém liga antes de precisar
+    antes = carimbo.get("diferentes_mantido_o_do_banco") if ja_levado else []
+    d["banco"] = {"projeto": cfg["url"], "levado_em": datetime.now().isoformat(timespec="seconds"),
+                  "incluidos": (carimbo.get("incluidos", 0) if ja_levado else 0) + res["incluidos"],
+                  "diferentes_mantido_o_do_banco": list(dict.fromkeys((antes or []) + res["diferentes"]))[-50:],
+                  "vistos": sorted(todas)}
+    alvo["salvar"] = True
     LOG.info("cadastros levados ao banco: %s", {k: v for k, v in res.items() if k != "diferentes"})
     return res
+
+
+# ------------------------------------------------ listas vivas na tela -----
+# A tela pergunta a cada meio minuto (e ao voltar para a janela) se os
+# cadastros mudaram; só recarrega as listas quando a resposta muda.
+_olhada = {"arq": None, "mtime": None, "falhou_em": 0.0}
+
+
+def versao_cadastros() -> str:
+    """Muda quando os cadastros mudam.
+
+    Com banco: a marca do banco. De quebra, se o arquivo de cadastros mudou
+    desde a última olhada — alguém ainda na versão antiga cadastrou nele —,
+    leva a novidade para o banco antes de responder.
+    Sem banco: a data de gravação do próprio arquivo."""
+    import time as _t
+    mtime = None
+    if _t.monotonic() - _olhada["falhou_em"] >= 60:    # pasta de rede fora: não insiste a cada olhada
+        try:
+            mtime = os.path.getmtime(USER_JSON)
+        except OSError:
+            _olhada["falhou_em"] = _t.monotonic()
+    if not _banco.configuracao():
+        return "arquivo:%s" % mtime
+    if mtime is not None and (_olhada["arq"], _olhada["mtime"]) != (USER_JSON, mtime):
+        try:
+            levar_para_o_banco()
+            mtime = os.path.getmtime(USER_JSON)        # o carimbo pode ter regravado o arquivo
+        except Exception as exc:                       # a olhada nunca derruba a tela
+            LOG.warning("não consegui levar o arquivo de cadastros para o banco: %s", exc)
+        _olhada.update(arq=USER_JSON, mtime=mtime)
+    return _banco.versao()
 
 
 @lru_cache(maxsize=1)

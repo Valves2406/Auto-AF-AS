@@ -349,6 +349,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif path == "/api/dados":
                 self._json(engine.dados())
+            elif path == "/api/versao_cadastros":   # a tela pergunta "mudou?" a cada meio minuto
+                self._json(engine.versao_cadastros())
             elif path == "/api/padroes":
                 self._json(engine.padroes())
             elif path == "/api/salvar_padroes":

@@ -154,6 +154,7 @@ async function init() {
     return;
   }
 
+  _versaoCad = DATA.versao_cadastros || null;   // ponto de partida das listas vivas
   fillSelect("moeda", DATA.moedas);
   fillSelect("prefixo", DATA.prefixos);
   fillSelect("mod", DATA.modificacoes);
@@ -1924,15 +1925,51 @@ async function salvarCadastro(tipo, dados, idsLimpar) {
   } catch (e) { setCad("Erro ao salvar: " + e, "erro"); }
 }
 async function recarregarDados() {
+  // O fornecedor escolhido é guardado pelo que ele É, não pela posição: com a
+  // equipe cadastrando, um nome novo entra no meio da ordem alfabética e a
+  // posição antiga passaria a apontar para OUTRO fornecedor.
+  const antes = DATA && DATA.fornecedores[+$("catalogo").value];
   DATA = await (await api("/api/dados")).json();
-  const catSel = $("catalogo").value;
+  _versaoCad = DATA.versao_cadastros || _versaoCad;
   optionList("catalogo", DATA.fornecedores.map(f => f.apelido ? `${f.apelido} — ${f.empresa}` : f.empresa));
   atualizarPreferencias();
   $("catCount").textContent = `${DATA.fornecedores.length} fornecedores no catálogo`;
-  $("catalogo").value = catSel;
+  const idx = !antes ? -1 : DATA.fornecedores.findIndex(f =>
+    antes._id != null ? f._id === antes._id : (f.empresa === antes.empresa && f.cnpj === antes.cnpj));
+  $("catalogo").value = String(idx);
   atualizarStats();
   renderExcluir();
 }
+
+// ---- listas vivas: o que alguém da equipe cadastra aparece sem reabrir ----
+// A cada 30 s (e ao voltar para a janela) pergunta ao motor se os cadastros
+// mudaram. A pergunta é leve — o motor só baixa as listas se mudaram de fato.
+// Não troca a lista embaixo de uma busca aberta: espera ela fechar.
+let _versaoCad = null, _conferindo = false;
+async function conferirCadastros() {
+  if (_conferindo || !DATA || document.hidden) return;
+  if (["catLista", "fatLista", "entLista"].some(id => $(id) && !$(id).hidden)) return;
+  _conferindo = true;
+  try {
+    const r = await (await api("/api/versao_cadastros")).json();
+    if (!r || !r.ok || !r.versao) return;
+    if (_versaoCad === null) { _versaoCad = r.versao; return; }
+    if (r.versao === _versaoCad) {
+      if (r.banco && DATA.banco && r.banco.online !== DATA.banco.online) { DATA.banco = r.banco; atualizarStats(); }
+      return;
+    }
+    const n = [DATA.fornecedores.length, DATA.faturamento.length, DATA.pops.length];
+    await recarregarDados();
+    const m = [DATA.fornecedores.length, DATA.faturamento.length, DATA.pops.length];
+    const novos = m[0] - n[0] + m[1] - n[1] + m[2] - n[2];
+    setStatus(novos > 0 ? `Cadastros atualizados: ${novos} novo(s) da equipe já nas listas.`
+                        : "Cadastros atualizados com o que a equipe alterou.", "info");
+  } catch (e) { /* motor ocupado ou fechando: tenta na próxima */ }
+  finally { _conferindo = false; }
+}
+setInterval(conferirCadastros, 30000);
+window.addEventListener("focus", conferirCadastros);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) conferirCadastros(); });
 
 // ------------------------------- aba Excluir: TODOS + apagar/ocultar ------
 function escapeAttr(s) { return escapeHtml(s).replace(/'/g, "&#39;"); }

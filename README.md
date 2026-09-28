@@ -123,7 +123,13 @@ para o banco.** Padrões, agenda e lições continuam no JSON acima.
 - Sem internet, as listas saem da cópia `%APPDATA%\AutoAF\banco_cache.json`;
   sem cópia, do catálogo do modelo. Gravar exige conexão — nada fica pendente.
 - Na 1ª abertura com banco, o arquivo de cadastros da máquina é levado para lá
-  **uma vez** (tabela vazia: tudo; senão, só o que o banco não tem) e carimbado.
+  (tabela vazia: tudo; senão, só o que o banco não tem) e carimbado com a
+  impressão de cada cadastro. Depois, o que aparecer de NOVO no arquivo — gente
+  ainda na versão antiga — também é levado, sem duplicar.
+- **Listas vivas:** a tela pergunta "mudou?" a cada 30 s e ao voltar para a
+  janela (`/api/versao_cadastros`). A pergunta é leve — só a contagem e a última
+  alteração de cada tabela —, e as listas só são baixadas de novo se mudaram. O
+  fornecedor escolhido é reencontrado pelo número no banco, não pela posição.
 - Os testes nunca usam o banco de verdade: `rodar.py` liga `GERADORAF_SEM_BANCO`
   e um script da pasta `testes/` ignora o `config.json`.
 

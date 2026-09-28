@@ -39,6 +39,9 @@ _EXTRATOR = ExtratorProposta()
 
 
 def dados() -> dict:
+    # a versão ANTES das listas: conferir a versão pode levar ao banco uma
+    # novidade do arquivo, e as listas têm de já sair com ela
+    versao_cad = de.versao_cadastros()
     return {
         "ok": True,
         "fornecedores": de.catalogo_fornecedores(),
@@ -57,7 +60,18 @@ def dados() -> dict:
         "dados": de.onde_estao_os_dados(),
         # banco da equipe: configurado? respondendo? de quando é a cópia em uso?
         "banco": de._banco.estado(),
+        "versao_cadastros": versao_cad,
     }
+
+
+def versao_cadastros() -> dict:
+    """Muda quando a equipe inclui, altera ou oculta um cadastro: a tela compara
+    com a que tem e só recarrega as listas quando mudou."""
+    try:
+        return {"ok": True, "versao": de.versao_cadastros(), "banco": de._banco.estado()}
+    except Exception as exc:
+        LOG.warning("não consegui conferir se os cadastros mudaram: %s", exc)
+        return {"ok": False, "erro": str(exc)}
 
 
 def compartilhar_dados(caminho: str) -> dict:

@@ -55,7 +55,7 @@ LOG = get_logger("banco")
 TABELAS = ("fornecedores", "faturamento", "pops")
 ARQ_BANCO = "banco.json"
 TEMPO_LIMITE = 8           # segundos por requisição
-VALIDADE = 180             # segundos que uma leitura vale antes de perguntar de novo
+VALIDADE = 15              # segundos que uma leitura vale antes de perguntar "mudou?"
 ESPERA_APOS_FALHA = 60     # segundos sem tentar depois de uma falha
 
 
@@ -68,7 +68,7 @@ class Recusado(Exception):
 
 
 _trava = threading.Lock()
-_memoria: dict[str, tuple[float, list]] = {}      # tabela -> (quando, linhas)
+_memoria: dict[str, tuple] = {}      # tabela -> (quando, linhas, marca ou None)
 _estado = {"online": None, "erro": "", "falhou_em": 0.0}
 _cfg = {"lida": False, "valor": None}
 
@@ -200,7 +200,8 @@ def _mensagem(corpo: str) -> tuple[str, str]:
         return "", corpo
 
 
-def _pedir(metodo: str, caminho: str, corpo=None, cabecalhos: dict | None = None):
+def _pedir(metodo: str, caminho: str, corpo=None, cabecalhos: dict | None = None,
+           com_cabecalhos: bool = False):
     cfg = configuracao()
     if not cfg:
         raise Indisponivel("banco não configurado")
@@ -216,6 +217,7 @@ def _pedir(metodo: str, caminho: str, corpo=None, cabecalhos: dict | None = None
     try:
         with urllib.request.urlopen(req, timeout=TEMPO_LIMITE) as r:
             texto = r.read().decode("utf-8")
+            recebidos = dict(r.headers.items())
     except urllib.error.HTTPError as exc:          # respondeu, mas com erro
         codigo, msg = _mensagem(exc.read().decode("utf-8", "replace")[:500])
         if exc.code in (401, 403) and codigo != "42501":
@@ -234,7 +236,8 @@ def _pedir(metodo: str, caminho: str, corpo=None, cabecalhos: dict | None = None
         raise Indisponivel("sem conexão com o banco") from exc
     with _trava:
         _estado.update(online=True, erro="", falhou_em=0.0)
-    return json.loads(texto) if texto.strip() else None
+    dados_ = json.loads(texto) if texto.strip() else None
+    return (dados_, recebidos) if com_cabecalhos else dados_
 
 
 # ------------------------------------------------------------ cópia local --
@@ -268,6 +271,24 @@ def _ler_copia(tabela: str) -> tuple[list, str] | None:
 
 
 # ---------------------------------------------------------------- leituras --
+# A MARCA de uma tabela é "quantas linhas / a alteração mais recente": muda
+# quando alguém inclui, altera, oculta ou (pelo painel) apaga. Perguntar a marca
+# custa uma linha de resposta; baixar a tabela inteira, centenas. Então, vencida
+# a leitura em memória, o app pergunta a marca e só baixa de novo se ela mudou —
+# é o que deixa a lista de todo mundo em dia em segundos sem pesar no banco.
+def _marca(achadas: list) -> str:
+    return "%d/%s" % (len(achadas), max((str(r.get("atualizado_em") or "") for r in achadas), default=""))
+
+
+def _marca_remota(tabela: str) -> str:
+    corpo, cab = _pedir("GET", f"{tabela}?select=atualizado_em&order=atualizado_em.desc&limit=1",
+                        cabecalhos={"Prefer": "count=exact"}, com_cabecalhos=True)
+    faixa = {k.lower(): v for k, v in cab.items()}.get("content-range", "")
+    total = faixa.rsplit("/", 1)[-1] if "/" in faixa else "?"
+    ultimo = str(corpo[0].get("atualizado_em") or "") if isinstance(corpo, list) and corpo else ""
+    return "%s/%s" % (total, ultimo)
+
+
 def linhas(tabela: str) -> list[dict]:
     """Todas as linhas da tabela, ocultas inclusive, na ordem em que entraram.
 
@@ -282,11 +303,15 @@ def linhas(tabela: str) -> list[dict]:
         pode_tentar = not _estado["falhou_em"] or agora - _estado["falhou_em"] >= ESPERA_APOS_FALHA
     if pode_tentar:
         try:
+            if guardado and guardado[2] and _marca_remota(tabela) == guardado[2]:
+                with _trava:                      # nada mudou: a mesma lista vale mais um pouco
+                    _memoria[tabela] = (time.monotonic(), guardado[1], guardado[2])
+                return guardado[1]
             # o banco entrega até 1000 linhas por pedido; os cadastros têm centenas
             achadas = _pedir("GET", f"{tabela}?select=*&order=id.asc")
             if isinstance(achadas, list):
                 with _trava:
-                    _memoria[tabela] = (time.monotonic(), achadas)
+                    _memoria[tabela] = (time.monotonic(), achadas, _marca(achadas))
                 _gravar_copia(tabela, achadas)
                 return achadas
         except Indisponivel:
@@ -295,9 +320,26 @@ def linhas(tabela: str) -> list[dict]:
     if copia is None:
         raise Indisponivel(_estado["erro"] or "sem conexão com o banco")
     with _trava:
-        # vale só até a próxima tentativa, não os três minutos inteiros
-        _memoria[tabela] = (time.monotonic() - VALIDADE + ESPERA_APOS_FALHA, copia[0])
+        # vale só até a próxima tentativa; sem marca: na volta, baixa de novo
+        _memoria[tabela] = (time.monotonic() - VALIDADE + ESPERA_APOS_FALHA, copia[0], None)
     return copia[0]
+
+
+def versao() -> str:
+    """Muda quando a equipe inclui, altera ou oculta algo — a tela compara com a
+    que tem e, se mudou, recarrega as listas. Sem conexão, fica parada."""
+    if not configuracao():
+        return ""
+    partes = []
+    for t in TABELAS:
+        try:
+            linhas(t)
+        except Indisponivel:
+            return "sem-conexao"
+        with _trava:
+            g = _memoria.get(t)
+        partes.append("%s:%s" % (t, g[2] if g and g[2] else "copia"))
+    return "|".join(partes)
 
 
 def esquecer(tabela: str | None = None):

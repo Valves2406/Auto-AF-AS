@@ -13,7 +13,10 @@ O QUE ESTE TESTE GUARDA
     que a pessoa enxergava (modelo + cadastros − ocultos) e os ocultos, que
     continuam restauráveis; depois o arquivo fica carimbado e não repete;
   • um segundo arquivo só ACRESCENTA o que o banco não tem — não desfaz uma
-    correção feita no banco com um dado velho;
+    correção feita no banco com um dado velho; e o que a versão antiga do app
+    gravar no arquivo DEPOIS (a transição) também chega, sem duplicar;
+  • o que outra máquina grava aparece nas listas em segundos, e a conferência
+    é uma pergunta leve ("mudou?"), não a lista inteira de novo;
   • cadastrar, editar, ocultar e restaurar vão ao banco, pelo número do item;
     duplicata é recusada; nada é apagado de verdade;
   • sem internet: a tela segue com a cópia local, sem esperar o tempo-limite
@@ -64,17 +67,25 @@ NOME = {"fornecedores": ("apelido", "empresa"), "faturamento": ("razao_social",)
 TABELAS = {t: [] for t in CAMPOS}
 PEDIDOS = []
 _seq = [0]
+_relogio = [0]
+
+
+def agora():                               # o "now()" do banco: sempre andando
+    _relogio[0] += 1
+    return "2026-09-25T12:00:00.%06d+00:00" % _relogio[0]
 
 
 class Falso(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def _resp(self, codigo, corpo):
+    def _resp(self, codigo, corpo, extra=None):
         dados = json.dumps(corpo).encode("utf-8")
         self.send_response(codigo)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(dados)))
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(dados)
 
@@ -97,8 +108,14 @@ class Falso(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._autorizado():
             return
-        tabela, _ = self._alvo()
-        self._resp(200, sorted(TABELAS[tabela], key=lambda r: r["id"]))
+        tabela, q = self._alvo()
+        linhas = TABELAS[tabela]
+        if q.get("select") == ["atualizado_em"]:          # a pergunta leve: "mudou?"
+            topo = sorted(linhas, key=lambda r: r["atualizado_em"], reverse=True)[:1]
+            faixa = ("0-0/%d" % len(linhas)) if linhas else "*/0"
+            return self._resp(200, [{"atualizado_em": r["atualizado_em"]} for r in topo],
+                              {"Content-Range": faixa})
+        self._resp(200, sorted(linhas, key=lambda r: r["id"]))
 
     def do_POST(self):
         if not self._autorizado():
@@ -111,8 +128,9 @@ class Falso(BaseHTTPRequestHandler):
             if not any(str(reg.get(k) or "").strip() for k in NOME[tabela]):
                 return self._resp(400, {"code": "23514", "message": "violates check constraint"})
             _seq[0] += 1
+            quando = agora()
             linha = {"id": _seq[0], **{k: str(reg.get(k) or "") for k in CAMPOS[tabela]},
-                     "oculto": False, "criado_em": "agora", "atualizado_em": "agora"}
+                     "oculto": False, "criado_em": quando, "atualizado_em": quando}
             feitos.append(linha)
         TABELAS[tabela].extend(feitos)
         self._resp(201, feitos)
@@ -126,7 +144,7 @@ class Falso(BaseHTTPRequestHandler):
         feitos = []
         for r in TABELAS[tabela]:
             if r["id"] in ids:
-                r.update(mudar)
+                r.update(mudar, atualizado_em=agora())      # o gatilho do banco carimba
                 feitos.append(dict(r))
         self._resp(200, feitos)
 
@@ -247,6 +265,36 @@ ok("o oculto some da lista", all(f["apelido"] != "ALFA" for f in de.catalogo_for
 ok("restaurar devolve", de.restaurar_usuario("fornecedor", {"_id": alfa["_id"]}) == 1 and
    any(f["apelido"] == "ALFA" for f in de.catalogo_fornecedores()))
 
+# ------------------------------------------------ 3b. listas vivas ---------
+print("\n3b. O que outra máquina grava aparece em segundos")
+
+
+def vencer():                  # como se os segundos da leitura em memória tivessem passado
+    for t, g in list(banco._memoria.items()):
+        banco._memoria[t] = (g[0] - banco.VALIDADE - 1,) + tuple(g[1:])
+
+
+v1 = de.versao_cadastros()
+vencer()
+n = len(PEDIDOS)
+ok("sem mudança, a versão continua a mesma", de.versao_cadastros() == v1)
+ok("...e o app só fez a pergunta leve, sem baixar lista",
+   len(PEDIDOS) > n and all("select=atualizado_em" in p for _, p in PEDIDOS[n:]), str(PEDIDOS[n:]))
+_seq[0] += 1
+q = agora()
+TABELAS["pops"].append({"id": _seq[0], "nome": "POP DE OUTRA MAQUINA", "sigla": "OUT-OUT", "endereco": "",
+                        "municipio": "Natal", "uf": "RN", "maps": "", "latitude": "", "longitude": "",
+                        "cedente": "", "oculto": False, "criado_em": q, "atualizado_em": q})
+vencer()
+v2 = de.versao_cadastros()
+ok("outra máquina incluiu: a versão muda", v2 != v1, v2)
+ok("...e a lista já traz o novo", any(p["nome"] == "POP DE OUTRA MAQUINA" for p in de.pops_entrega()))
+sul = next(p for p in TABELAS["pops"] if p["nome"] == "POP SUL")
+sul.update(endereco="Rua Sul, 700", atualizado_em=agora())      # alguém corrigiu pelo painel
+vencer()
+ok("corrigir pelo painel do Supabase também muda a versão", de.versao_cadastros() != v2)
+ok("...e a lista traz a correção", any(p["endereco"] == "Rua Sul, 700" for p in de.pops_entrega()))
+
 # ------------------------------------------------ 4. arquivo de outra máquina
 print("\n4. O arquivo de outra máquina só acrescenta")
 ARQ2 = os.path.join(TMP, "outra_maquina.json")
@@ -265,6 +313,22 @@ ok("a diferença fica registrada", r.get("diferentes") == ["POP NOVO"], str(r))
 carimbo2 = json.load(open(ARQ2, encoding="utf-8")).get("banco") or {}
 ok("...no carimbo do próprio arquivo (o log não existe por padrão)",
    carimbo2.get("diferentes_mantido_o_do_banco") == ["POP NOVO"], str(carimbo2))
+
+# a transição: alguém ainda na versão antiga do app grava um POP no arquivo
+with open(ARQ2, encoding="utf-8") as f:
+    d2 = json.load(f)
+d2["pops"].append({"nome": "POP OESTE", "sigla": "OES-OES", "endereco": "Rua O, 1",
+                   "municipio": "Cuiabá", "uf": "MT"})
+with open(ARQ2, "w", encoding="utf-8") as f:
+    json.dump(d2, f, ensure_ascii=False)
+de.versao_cadastros()                       # a olhada de meio em meio minuto da tela
+ok("o que a versão antiga grava no arquivo DEPOIS também chega ao banco",
+   any(p["nome"] == "POP OESTE" for p in TABELAS["pops"]))
+ok("...sem duplicar o que já tinha levado",
+   sum(1 for p in TABELAS["pops"] if p["nome"] == "POP NORTE") == 1)
+n = len(PEDIDOS)
+ok("olhar de novo sem novidade no arquivo não pergunta nada ao banco",
+   de.levar_para_o_banco() == {} and len(PEDIDOS) == n, str(PEDIDOS[n:]))
 de.USER_JSON = ARQ
 
 # ------------------------------------------------------- 5. sem internet --
