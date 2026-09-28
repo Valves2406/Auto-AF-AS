@@ -33,6 +33,12 @@ datas = [
     (os.path.join(BACKEND, "modelos"), "backend/modelos"),
     (FRONTEND, "frontend"),
 ]
+# BANCO DA EQUIPE: o banco.json da raiz (endereço + chave publicável, fora do
+# Git) viaja dentro do .exe — quem recebe só o executável já cai no banco, sem
+# configurar nada. Sem o arquivo, o .exe sai sem banco (listas do modelo +
+# arquivo), como antes. Ver core/banco.py.
+if os.path.exists(os.path.join(RAIZ, "banco.json")):
+    datas.append((os.path.join(RAIZ, "banco.json"), "backend"))
 # pdfplumber/pdfminer levam tabelas .txt de codificação que não são detectadas
 datas += collect_data_files("pdfminer")
 datas += collect_data_files("pdfplumber")
@@ -63,6 +69,9 @@ a = Analysis(
         # Sem isto o .exe abre normalmente e NUNCA se atualiza, em silencio --
         # que e justamente o defeito que a atualizacao automatica veio corrigir.
         "core.atualizador",
+        # o banco da equipe e o leitor de AF: sem eles o .exe abre, mas sem
+        # banco (listas velhas) ou sem "Ler AF/AS" — de novo em silêncio
+        "core.banco", "core.leitor_af",
         "openpyxl", "pdfplumber", "pypdfium2", "reportlab",
     ],
     hookspath=[],

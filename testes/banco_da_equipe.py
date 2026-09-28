@@ -22,6 +22,8 @@ O QUE ESTE TESTE GUARDA
   • sem internet: a tela segue com a cópia local, sem esperar o tempo-limite
     a cada lista; gravar avisa que nada foi salvo; sem cópia, vale o modelo;
   • chave errada não derruba nada — só volta ao modo sem banco;
+  • o .exe mandado SOZINHO acha o banco que viaja dentro dele; um banco.json
+    ao lado do .exe manda mais que o embutido;
   • um script da pasta testes/ NUNCA acha o banco de verdade pelo config.json.
 
 O banco de mentira responde como a API do Supabase (PostgREST) nos pedidos que
@@ -377,6 +379,32 @@ for k in ("GERADORAF_BANCO_URL", "GERADORAF_BANCO_CHAVE"):
     os.environ.pop(k)
 banco._cfg.update(lida=False, valor=None)
 ok("um script de testes/ não usa o banco do config.json", banco.configuracao() is None)
+
+# o .exe mandado sozinho: sem config.json, sem pasta do setor, sem banco.json
+# ao lado — só o que viaja DENTRO dele (recurso backend/banco.json)
+from core import caminhos                                # noqa: E402
+EXE = os.path.join(TMP, "dentro_do_exe")
+os.makedirs(os.path.join(EXE, "backend"))
+with open(os.path.join(EXE, "backend", "banco.json"), "w", encoding="utf-8") as f:
+    json.dump({"url": "https://embutido.supabase.co", "chave": "sb_publishable_embutida"}, f)
+os.remove(os.path.join(PERFIL, "config.json"))
+caminhos.BASE_RECURSO = EXE
+caminhos.BASE_DADOS = os.path.join(TMP, "ao_lado_do_exe_vazio")
+banco._rodando_teste = lambda: False                    # agora é "o .exe", não um teste
+banco._cfg.update(lida=False, valor=None)
+cfg = banco.configuracao() or {}
+ok("o .exe mandado sozinho acha o banco que viaja dentro dele",
+   cfg.get("url") == "https://embutido.supabase.co", str(cfg))
+guardado = json.load(open(os.path.join(PERFIL, "config.json"), encoding="utf-8")).get("banco") or {}
+ok("...e guarda na máquina, como faz com o da pasta do setor",
+   guardado.get("url") == "https://embutido.supabase.co", str(guardado))
+os.makedirs(caminhos.BASE_DADOS)
+with open(os.path.join(caminhos.BASE_DADOS, "banco.json"), "w", encoding="utf-8") as f:
+    json.dump({"url": "https://ao-lado.supabase.co", "chave": "sb_publishable_ao_lado"}, f)
+os.remove(os.path.join(PERFIL, "config.json"))
+banco._cfg.update(lida=False, valor=None)
+ok("um banco.json ao lado do .exe manda mais que o embutido (trocar de banco sem outro .exe)",
+   (banco.configuracao() or {}).get("url") == "https://ao-lado.supabase.co")
 
 shutil.rmtree(TMP, ignore_errors=True)
 print("FALHAS: " + ", ".join(falhas) if falhas else "TUDO OK")

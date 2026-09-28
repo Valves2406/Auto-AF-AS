@@ -26,7 +26,9 @@ Onde fica a configuração (endereço + chave publicável)
 2. %APPDATA%\AutoAF\config.json, chave "banco";
 3. um banco.json ao lado do executável ou na pasta do setor. Achado ali, é
    copiado para o config.json: a máquina continua sabendo do banco mesmo com a
-   pasta de rede fora do ar.
+   pasta de rede fora do ar;
+4. o banco.json EMBUTIDO no executável (o spec o empacota se ele existir na
+   raiz do projeto na hora do build) — mandar só o .exe já basta.
 
 A chave publicável só lê, inclui e altera — apagar não existe para ela, e cada
 alteração fica guardada num histórico que a API não enxerga (as regras estão no
@@ -139,6 +141,19 @@ def _pastas_da_equipe() -> list[str]:
     return pastas
 
 
+def _pasta_embutida() -> str:
+    """O banco.json que viaja DENTRO do executável (o spec o empacota quando o
+    arquivo existe na hora do build). É o último da busca: um banco.json ao
+    lado do app ou na pasta do setor manda mais — dá para trocar de banco sem
+    gerar outro .exe. É o que deixa "mandar só o .exe" funcionar: quem recebe
+    não tem config.json nem pasta do setor, e mesmo assim cai no banco certo."""
+    try:
+        from .caminhos import recurso
+        return os.path.dirname(recurso("backend", ARQ_BANCO))
+    except Exception:
+        return ""
+
+
 def _guardar_na_maquina(cfg: dict):
     arq = os.path.join(_pasta_perfil(), "config.json")
     atual = _ler_json(arq)
@@ -160,7 +175,9 @@ def configuracao() -> dict | None:
     if not cfg:
         cfg = _valida(_ler_json(os.path.join(_pasta_perfil(), "config.json")).get("banco"))
     if not cfg:
-        for pasta in _pastas_da_equipe():
+        for pasta in _pastas_da_equipe() + [_pasta_embutida()]:
+            if not pasta:
+                continue
             achado = _valida(_ler_json(os.path.join(pasta, ARQ_BANCO)))
             if achado:
                 cfg = achado
