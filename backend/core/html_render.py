@@ -669,6 +669,9 @@ table.cons .cons-v{{text-align:right;font-weight:600;font-variant-numeric:tabula
      CPM sem medir seria mudar a paginação dele de carona. */
   .grid2>div,.foot>div,.orc .cel{{break-inside:avoid}}
   .bloco,.grid2,.foot,.orc{{break-inside:auto}}
+  /* ASSINATURA NUNCA SOZINHA (a regra da AF, que faltava aqui): o cartão da
+     alçada e TODAS as assinaturas são uma peça só. */
+  .fim{{break-inside:avoid}}
 }}
 </style></head><body><div class="folha">
   <div class="top">{_logo_html()}
@@ -697,12 +700,22 @@ table.cons .cons-v{{text-align:right;font-weight:600;font-variant-numeric:tabula
       {linha('Anexo (proposta)', c.get('proposta'))}{local_linha}
     </div>
   </div>
-  <div class="bloco"><div class="sec">Alçada &amp; aprovação</div>
-    <div class="obj" style="font-size:11.5px;margin-bottom:6px">{_e(c.get('alcada'))}</div>
-    <div class="cond-grid">{aprov_html or '<div class="muted">—</div>'}</div>
-  </div>
   {locais_html}
-  <div class="assin">{assin_html}</div>
+  <!-- FIM DO DOCUMENTO: a alçada e as assinaturas andam juntas, como na AF.
+       Soltas, as assinaturas abriam folha sozinhas — ou, com 3-4 pessoas,
+       partiam entre as linhas e o CFO caía sozinho na folha seguinte.
+       O preço é conhecido e foi escolhido: quando o conjunto não cabe no pé
+       da folha, ele salta inteiro e o pé fica em branco (até ~45%, medido).
+       Partir o cartão da alçada para diminuir esse vão foi descartado: a
+       continuação apareceria sem título na folha seguinte, que é a regra
+       "bloco não se parte" deste documento. -->
+  <div class="fim">
+    <div class="bloco"><div class="sec">Alçada &amp; aprovação</div>
+      <div class="obj" style="font-size:11.5px;margin-bottom:6px">{_e(c.get('alcada'))}</div>
+      <div class="cond-grid">{aprov_html or '<div class="muted">—</div>'}</div>
+    </div>
+    <div class="assin">{assin_html}</div>
+  </div>
   <div class="rod">Pré-visualização do CPM/CPS</div>
 </div></body></html>"""
 

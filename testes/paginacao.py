@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 r"""A assinatura nunca fica sozinha, e a folha não sai pela metade.
 
+(2026-09: na CPM/CPS com 3-4 assinaturas o CFO ainda caía sozinho — a CPM não
+tinha o `.fim` da AF. Ver a seção "com 3 e 4 assinaturas" lá embaixo.)
+
 Medido nos documentos que saíram do app (AF-E-362 e RTC-CPM-E-362):
 
     AF  pág 1: conteúdo até y=569 de 842  -> 273pt em branco no pé
@@ -206,10 +209,56 @@ for n_it, n_loc in ((1, 19), (16, 19)):
     c = engine.cpm_dados(payload(n_it, n_loc))
     avalia(montar_cpm_html(c.get("cpm") or c), "%2d itens/%2d locais" % (n_it, n_loc))
 
+print("\n== CPM/CPS com 3 e 4 assinaturas: nenhuma sai da folha da alçada ==")
+# O CASO REAL (CPM das AF-E-385…390 da CIENA): com 3 pessoas o CFO caiu
+# SOZINHO na folha seguinte; com 4, as quatro assinaturas foram para uma folha
+# só delas. O teste de cima não via: usava 2 assinaturas, e "assinatura
+# sozinha" era procurar "Gerente"/"Eletronet" numa folha curta — "CFO Fulano"
+# passava. Aqui a prova é outra: cada nome aparece DUAS vezes, na lista da
+# alçada ("Nome, email") e na linha de assinatura. As duas na MESMA folha =
+# a assinatura está com a alçada. Os tamanhos são os que falhavam.
+#
+# O preço foi escolhido e fica escrito: quando alçada + assinaturas não cabem
+# no pé, saltam juntas e o pé fica em branco (medido: até ~46%). Partir o
+# cartão da alçada para encurtar o vão deixaria a continuação sem título. O
+# teste guarda um TETO para esse vão, para ele não crescer sem ninguém ver.
+_GEST = {"gerente": ("Fulano Exemplo de Almeida Pereira, fulano@eletronet.com", "Pereira"),
+         "diretor": ("Beltrano Exemplo Massato Oliveira, beltrano@eletronet.com", "Oliveira"),
+         "cfo": ("Ciclano Exemplo Kenji Moreira, ciclano@eletronet.com", "Moreira"),
+         "presidencia": ("Deltrano Exemplo Garcia Teixeira, deltrano@eletronet.com", "Teixeira")}
+for quem, tamanhos in ((("gerente", "diretor", "cfo"), (10, 14)),
+                       (("gerente", "diretor", "cfo", "presidencia"), (8, 12))):
+    for n_loc in tamanhos:
+        j = dict(payload(19, n_loc), moeda="Dólar Americano", valor_total="633.039,00", cotacao="5,40",
+                 entregas=[{"nome": "Site %02d" % i, "sigla": "S%02d" % i,
+                            "endereco": "Rodovia BR %d, km %d, s/n" % (100 + i, i),
+                            "municipio": "Municipio %02d" % i, "uf": "MG"} for i in range(1, n_loc + 1)])
+        for k, (nome, _s) in _GEST.items():
+            j[k] = nome if k in quem else ""
+        alvo = os.path.join(tempfile.gettempdir(), "teste_pag_cpm_assin.pdf")
+        if os.path.exists(alvo):
+            os.remove(alvo)
+        gerar_af_pdf_html(alvo, montar_cpm_html(engine.cpm_de_form(j)))
+        with pdfplumber.open(alvo) as pdf:
+            paginas = [" ".join(w["text"] for w in pg.extract_words()) for pg in pdf.pages]
+            vaos = [100.0 * (pg.height - max(w["bottom"] for w in pg.extract_words())) / pg.height
+                    for pg in pdf.pages[:-1] if pg.extract_words()]
+        fora = [k for k in quem
+                if len({i for i, t in enumerate(paginas) for _ in range(t.count(_GEST[k][1]))}) != 1]
+        tag = "%d assinam, %2d locais" % (len(quem), n_loc)
+        ok("%s — todas na folha da alçada" % tag, not fora, "separadas da alçada: %s" % fora)
+        ok("%s — vão no pé dentro do teto (<50%%)" % tag, max(vaos or [0]) < 50,
+           "maior vão %.0f%%" % max(vaos or [0]))
+
 print("\n== as regras estão no CSS dos DOIS documentos ==")
+ok("a alçada e as assinaturas formam uma peça só (CPM)",
+   '<div class="fim">\n    <div class="bloco"><div class="sec">Alçada &amp; aprovação</div>'
+   in io.open(os.path.join(PROJ, "backend", "core", "html_render.py"), encoding="utf-8").read())
 fonte = io.open(os.path.join(PROJ, "backend", "core", "html_render.py"), encoding="utf-8").read()
 ok("a assinatura e o bloco anterior formam uma peça só (AF)",
    '.fim{{break-inside:avoid}}' in fonte and '<div class="fim">' in fonte)
+ok("e a peça é indivisível nos DOIS documentos (AF e CPM)",
+   fonte.count('.fim{{break-inside:avoid}}') == 2, str(fonte.count('.fim{{break-inside:avoid}}')))
 # A regra vale para os DOIS documentos porque agora é UMA só, num bloco comum.
 # Antes eram duas cópias, e a cópia foi o defeito: o encolhimento existia no
 # lado da AF e não no do CPM, e por isso a assinatura do CPM saiu órfã. Este
