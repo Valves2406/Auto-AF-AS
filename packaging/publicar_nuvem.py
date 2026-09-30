@@ -3,6 +3,7 @@ r"""Publica o .exe como a versão nova — todo mundo recebe pela internet.
 
     python packaging\publicar_nuvem.py                      (o .exe de packaging\dist)
     python packaging\publicar_nuvem.py "C:\...\Auto AF-AS.exe" --notas "o que mudou"
+    python packaging\publicar_nuvem.py --verificar          (só confere a chave; não publica)
 
 A versão é a VERSAO_APP do código (core/dados_eletronet.py): gere o .exe DEPOIS
 de subir o número, senão as máquinas não veem novidade.
@@ -35,17 +36,22 @@ def main():
     ap = argparse.ArgumentParser(description="Publica a versão nova do Auto AF/AS.")
     ap.add_argument("exe", nargs="?", default=os.path.join(RAIZ, "packaging", "dist", "Auto AF-AS.exe"))
     ap.add_argument("--notas", default="", help="o que mudou (aparece no versao.json)")
+    ap.add_argument("--verificar", action="store_true",
+                    help="só confere se a chave secreta serve — não publica nada")
     a = ap.parse_args()
 
-    chave = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
-    if not chave:
-        print("Falta a chave secreta: defina SUPABASE_SECRET_KEY nesta máquina "
-              "(Supabase → Settings → API Keys → Secret key).")
-        return 2
     cfg = banco.configuracao()
     if not cfg:
         print("Banco não configurado nesta máquina (config.json / banco.json).")
         return 2
+    chave = nuvem.chave_secreta()
+    v = nuvem.verificar_chave(cfg["url"], chave)
+    if not v["ok"]:
+        print("A chave NÃO serve: " + v["erro"])
+        return 2
+    if a.verificar:
+        print("Chave OK: ela é a secreta, deste projeto, e consegue publicar versões. Nada foi publicado.")
+        return 0
     atual = nuvem.manifesto(cfg).get("versao", "")
     if atual and not nuvem.mais_nova(VERSAO_APP, atual):
         print(f"A versão {VERSAO_APP} não é mais nova que a publicada ({atual}). "

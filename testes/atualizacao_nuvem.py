@@ -73,6 +73,10 @@ class Storage(BaseHTTPRequestHandler):
         return self.rfile.read(n) if n else b""
 
     def do_GET(self):
+        if self.path == "/storage/v1/bucket/versoes":   # só a secreta enxerga o espaço
+            if self._chave() == CHAVE_SECRETA:
+                return self._resp(200, {"id": "versoes", "name": "versoes", "public": False})
+            return self._resp(400, {"statusCode": "404", "error": "Bucket not found"})
         pre = "/storage/v1/object/authenticated/versoes/"
         if not self.path.startswith(pre) or self._chave() not in (CHAVE_APP, CHAVE_SECRETA):
             return self._resp(400, {"statusCode": "403", "error": "Unauthorized"})
@@ -135,6 +139,16 @@ def exe_falso(nome, conteudo):
 
 
 V09 = os.urandom(2500)             # "o .exe" da 0.9: 3 partes de até 1000 bytes
+
+# ---------------------------------------------------- 0. conferir a chave --
+print("\n0. Conferir a chave de quem publica (sem publicar nada)")
+ok("sem chave: diz que não está definida", "não está definida" in nuvem.verificar_chave(URL, "")["erro"])
+ok("a chave PÚBLICA (do app) colada por engano é reconhecida",
+   "PÚBLICA" in nuvem.verificar_chave(URL, "sb_publishable_qualquer")["erro"])
+ok("chave errada: o Supabase recusa, com o que fazer",
+   "recusou" in nuvem.verificar_chave(URL, "sb_secret_de_outro_projeto")["erro"])
+ok("a chave secreta certa: OK", nuvem.verificar_chave(URL, CHAVE_SECRETA) == {"ok": True})
+ok("e nada foi publicado ao conferir", not ARQS)
 
 # ---------------------------------------------------------- 1. publicar ----
 print("\n1. Publicar")

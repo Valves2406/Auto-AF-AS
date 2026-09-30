@@ -316,6 +316,46 @@ def limpar(versao_atual: str):
 
 
 # ----------------------------------------------------------------- publicar --
+def verificar_chave(url: str, chave: str) -> dict:
+    """A chave de quem publica serve? Não envia nada: só pede os dados do espaço
+    `versoes`, que a chave do APP não enxerga ("Bucket not found") e a SECRETA
+    enxerga. Devolve {"ok": True} ou {"ok": False, "erro": o que fazer}."""
+    chave = (chave or "").strip()
+    if not chave:
+        return {"ok": False, "erro": "a chave não está definida nesta máquina (SUPABASE_SECRET_KEY)."}
+    if chave.startswith("sb_publishable_"):
+        return {"ok": False, "erro": "essa é a chave PÚBLICA, a do app (sb_publishable_…). "
+                                     "Use a chave SECRETA: Project Settings → API Keys → Secret keys (sb_secret_…)."}
+    req = urllib.request.Request(f"{url.rstrip('/')}/storage/v1/bucket/{BUCKET}")
+    req.add_header("apikey", chave)
+    req.add_header("Authorization", "Bearer " + chave)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            d = json.loads(r.read().decode("utf-8") or "{}")
+        if d.get("id") == BUCKET:
+            return {"ok": True}
+        return {"ok": False, "erro": "o Supabase respondeu, mas não mostrou o espaço de versões."}
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "erro": f"o Supabase recusou a chave (HTTP {exc.code}). Ela é de OUTRO projeto, "
+                                     "foi revogada ou foi copiada pela metade — copie de novo."}
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return {"ok": False, "erro": f"sem conexão com o Supabase ({exc})."}
+
+
+def chave_secreta() -> str:
+    """A chave de quem publica: da variável do processo ou, se ela foi criada
+    depois que o terminal abriu, direto das variáveis do usuário no Windows."""
+    chave = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+    if chave or os.name != "nt":
+        return chave
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+            return str(winreg.QueryValueEx(k, "SUPABASE_SECRET_KEY")[0]).strip()
+    except OSError:
+        return ""
+
+
 def publicar(exe: str, versao: str, url: str, chave_secreta: str, notas: str = "",
              tam_parte: int = TAM_PARTE, manter: int = 2) -> dict:
     """Envia a versão em partes e, POR ÚLTIMO, o versao.json que a anuncia.
