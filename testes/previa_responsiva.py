@@ -168,6 +168,17 @@ ok("AF: o rótulo da licitação é neutro e o VALOR é que muda",
    "Originado da Licitação" in af and "CPM-E-351/2026-GE" in af)
 ok("AS: o mesmo campo traz a CPS", "CPS-E-351/2026-GE" in ass)
 
+print("\n-- a caixa da descrição do item não invade as colunas vizinhas --")
+# Com `resize: both`, puxar a alça para o lado deixava a caixa mais larga que a
+# coluna (a tabela tem colunas fixas) e ela passava POR BAIXO da quantidade e
+# dos preços: o texto aparecia atrás dos números. A alça muda só a altura, e a
+# largura fica presa à coluna mesmo que alguma já tenha sido arrastada antes.
+_desc = re.search(r"table\.items textarea\.it-desc \{([^}]*)\}", _css)
+_regra = _desc.group(1) if _desc else ""
+ok("a alça da descrição muda só a altura", "resize: vertical" in _regra and "resize: both" not in _regra,
+   _regra.strip()[:120])
+ok("e a largura nunca passa da coluna", "max-width: 100%" in _regra)
+
 print()
 print("FALHAS: " + ", ".join(falhas) if falhas else "TUDO OK")
 sys.exit(1 if falhas else 0)
