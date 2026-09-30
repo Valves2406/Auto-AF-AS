@@ -88,8 +88,10 @@ function iniciarHeartbeat() {
 /* A tela de carregamento fica no ar por pelo menos isto. Com o motor já
    aquecido a preparação termina em milissegundos, e a tela piscava — rápido
    demais para ler o que está escrito nela. É PISO: preparação mais longa
-   manda, e ninguém espera além do necessário depois dos 5s. */
-const SPLASH_MINIMO = 5000;
+   manda. Eram 5 s; medido com o motor aquecido, tudo fica pronto em ~1,2 s
+   (a prévia da CPM por último), e o piso virou espera à toa — agora 1,75 s.
+   Quem garante a prévia montada ao abrir não é o piso: é `previasProntas`. */
+const SPLASH_MINIMO = 1750;
 const SPLASH_T0 = Date.now();
 
 /** Segura o fecho até completar o piso. O botão "Continuar mesmo assim" não
@@ -97,6 +99,17 @@ const SPLASH_T0 = Date.now();
 async function esperarPisoDoSplash() {
   const falta = SPLASH_MINIMO - (Date.now() - SPLASH_T0);
   if (falta > 0) await new Promise(r => setTimeout(r, falta));
+}
+
+/** Espera as DUAS prévias chegarem antes de abrir a tela (com teto): na
+    abertura fria a preparação passa do piso, e a tela abriria com a moldura
+    da prévia ainda em branco. O teto garante que ninguém fica preso nela. */
+async function previasProntas(teto) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < teto) {
+    if ($("preview").srcdoc && $("cpmPreview").srcdoc) return;
+    await new Promise(r => setTimeout(r, 50));
+  }
 }
 
 // Tela de carregamento: acompanha o aquecimento do motor (/api/preparar) para
@@ -199,6 +212,7 @@ async function init() {
   // CPM sairia vazia justamente na hora de usar.
   schedulePreview();
   cpmPreview();
+  await previasProntas(4000);   // as duas prévias já desenhadas (teto de 4 s)
   await esperarPisoDoSplash();
   fecharSplash();          // interface montada e motor aquecido → libera a tela
 }
