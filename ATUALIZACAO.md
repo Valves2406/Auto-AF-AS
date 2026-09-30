@@ -61,9 +61,31 @@ pyinstaller AutoAF.spec --noconfirm
 
 O arquivo sai em `dist\Auto AF-AS.exe`.
 
-### 4. Distribuir
-Substituir o `.exe` na Área de Trabalho de quem usa. Só isso — sem
-desinstalar, sem limpar nada, sem exportar/importar cadastro.
+### 4. Distribuir — pela internet (a partir da 0.9)
+
+```bash
+python packaging\publicar_nuvem.py --notas "o que mudou"
+```
+
+O .exe sobe para o espaço privado `versoes` do Supabase, em partes de 40 MB (o
+plano grátis aceita até 50 MB por arquivo), e por último o `versao.json` que
+anuncia a versão. Cada app, ao abrir, pergunta se há versão nova, **baixa em
+segundo plano**, confere a assinatura (SHA-256) e troca **na próxima abertura**
+— ou na hora, pelo botão "Reiniciar agora" do aviso. Ninguém é interrompido;
+sem internet, abre na versão que tem. Ficam no espaço só a versão nova e a
+anterior.
+
+- Precisa da **chave secreta** do Supabase (Settings → API Keys → Secret key)
+  na variável `SUPABASE_SECRET_KEY` da máquina de quem publica. Ela nunca vai
+  para o .exe nem para o repositório: é o que impede alguém com o .exe de
+  publicar uma versão falsa (a chave do app só baixa).
+- A versão publicada é a `VERSAO_APP` do código: suba o número ANTES de gerar
+  o .exe, senão as máquinas não veem novidade (o comando recusa).
+- Quem ainda está numa versão anterior à 0.9 não tem o atualizador: recebe a
+  0.9 à mão uma vez; dali em diante, é automático.
+
+Sem internet, a pasta do setor continua valendo (seção "O .exe numa pasta de
+rede" abaixo): o app tenta primeiro a versão da internet e depois a da pasta.
 
 ### 5. Conferir na máquina do usuário
 Abrir o app e ver o número da versão no aviso do topo. Se mudou, entrou.

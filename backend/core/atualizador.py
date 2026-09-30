@@ -242,6 +242,16 @@ def atualizar_na_abertura(versao_atual: str) -> dict:
         return {"trocou": False, "motivo": "rodando pelo código-fonte"}
     exe = os.path.abspath(sys.executable)
     limpar_antigo(exe)
+    # 1º a versão que veio PELA INTERNET (já baixada e conferida na sessão
+    # anterior, em segundo plano) — ver atualizador_nuvem. A pasta do setor
+    # continua valendo para quem ainda publica por ela.
+    try:
+        from .atualizador_nuvem import aplicar_pronta
+        r = aplicar_pronta(versao_atual, exe)
+        if r.get("trocou"):
+            return r
+    except Exception as exc:
+        LOG.warning("não consegui aplicar a versão baixada da internet: %s", exc)
     try:
         info = ha_atualizacao(versao_atual)
     except Exception as exc:

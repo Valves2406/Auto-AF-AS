@@ -351,6 +351,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json(engine.dados())
             elif path == "/api/versao_cadastros":   # a tela pergunta "mudou?" a cada meio minuto
                 self._json(engine.versao_cadastros())
+            elif path == "/api/atualizacao":        # há versão nova baixada, esperando a próxima abertura?
+                from core import atualizador_nuvem
+                from core.dados_eletronet import VERSAO_APP
+                self._json(dict(atualizador_nuvem.estado(VERSAO_APP), ok=True, atual=VERSAO_APP))
+            elif path == "/api/reiniciar":          # "Reiniciar agora": abre a nova e esta sai
+                self._json(_reiniciar_para_atualizar())
             elif path == "/api/padroes":
                 self._json(engine.padroes())
             elif path == "/api/salvar_padroes":
@@ -531,6 +537,27 @@ def _abrir(nav, caminho, url):
     return subprocess.Popen(args)
 
 
+def _reiniciar_para_atualizar() -> dict:
+    """"Reiniciar agora": abre uma NOVA instância do .exe — é ela que, na
+    abertura, troca pelo executável já baixado e reabre na versão nova. Esta
+    instância sai sozinha quando a janela dela fechar (a tela fecha a janela
+    logo depois desta resposta), pelo mesmo caminho de sempre (/api/fechar)."""
+    from core.caminhos import EMPACOTADO
+    from core import atualizador_nuvem
+    from core.dados_eletronet import VERSAO_APP
+    if not EMPACOTADO:
+        return {"ok": False, "erro": "Rodando pelo código-fonte: não há executável para atualizar."}
+    if not atualizador_nuvem.pronta(VERSAO_APP):
+        return {"ok": False, "erro": "Não há versão nova baixada."}
+    try:
+        subprocess.Popen([sys.executable], cwd=os.path.dirname(sys.executable), close_fds=True)
+    except Exception as exc:
+        LOG.exception("não consegui abrir a versão nova")
+        return {"ok": False, "erro": str(exc)}
+    LOG.info("reiniciando para a versão baixada")
+    return {"ok": True}
+
+
 def _lancar_navegador(url: str):
     escolhido = (os.environ.get("GERADORAF_NAVEGADOR") or "").strip().lower()
     tentar = []
@@ -577,6 +604,19 @@ def main():
     # /api/preparar e só libera a interface quando termina — assim a lentidão não
     # cai em cima da primeira ação do usuário.
     threading.Thread(target=preparar, daemon=True).start()
+    # VERSÃO NOVA PELA INTERNET: pergunta ao Supabase e, havendo, baixa em
+    # segundo plano enquanto a pessoa trabalha. Entra na próxima abertura (ou
+    # no "Reiniciar agora" da tela) — nunca no meio do trabalho. Só no .exe:
+    # pelo código-fonte não há executável para trocar.
+    try:
+        from core.caminhos import EMPACOTADO
+        if EMPACOTADO:
+            from core import atualizador_nuvem
+            from core.dados_eletronet import VERSAO_APP
+            threading.Thread(target=atualizador_nuvem.em_segundo_plano,
+                             args=(VERSAO_APP,), daemon=True).start()
+    except Exception as exc:
+        LOG.warning("não consegui iniciar a atualização pela internet: %s", exc)
     url = f"http://127.0.0.1:{port}/"
     print(f"Gerador de AF rodando em {url}  (saídas em {SAIDAS})")
     LOG.info("sessão iniciada em %s (saídas em %s)", url, SAIDAS)

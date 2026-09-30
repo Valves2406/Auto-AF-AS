@@ -280,7 +280,7 @@ def _chave_forte(chave: str, reg: dict) -> str:
 #   • mudou o FORMATO do dados_usuario.json? suba ESQUEMA_DADOS e escreva o
 #     passo correspondente em _MIGRACOES.
 # ===========================================================================
-VERSAO_APP = "0.8"
+VERSAO_APP = "0.9"
 ESQUEMA_DADOS = 2
 
 

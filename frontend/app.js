@@ -1982,6 +1982,32 @@ async function conferirCadastros() {
   finally { _conferindo = false; }
 }
 setInterval(conferirCadastros, 30000);
+
+// ---- versão nova do app, baixada pela internet em segundo plano ----------
+// Como num app de loja: o motor baixa e confere enquanto a pessoa trabalha; a
+// troca é na próxima abertura. Aqui só se AVISA — e o "Reiniciar agora" abre
+// a versão nova já, para quem não quer esperar.
+async function conferirAtualizacao() {
+  try {
+    const r = await (await api("/api/atualizacao")).json();
+    if (!r || !r.ok || !r.pronta) return;
+    $("avisoAttTxt").innerHTML = `Versão <b>${escapeHtml(r.pronta)}</b> baixada — ela entra na próxima vez `
+      + `que você abrir o app. Nada do que você está fazendo é interrompido.`;
+    $("avisoAtt").hidden = false;
+  } catch (e) { /* sem motor ou sem versão: nada a avisar */ }
+}
+setTimeout(conferirAtualizacao, 20000);          // dá tempo do download começar
+setInterval(conferirAtualizacao, 10 * 60000);    // e confere de novo a cada 10 min
+$("btnAttReiniciar").onclick = async () => {
+  if (!confirm("Fechar o app agora e abrir a versão nova? Salve o que estiver fazendo antes.")) return;
+  try {
+    const r = await (await api("/api/reiniciar")).json();
+    if (!r.ok) { setStatus("Não deu para reiniciar: " + (r.erro || "?"), "erro"); return; }
+    setStatus("A versão nova está abrindo — esta janela vai fechar.", "info");
+    setTimeout(() => window.close(), 800);
+    setTimeout(() => setStatus("A versão nova já está abrindo em outra janela — pode fechar esta.", "info"), 2500);
+  } catch (e) { setStatus("Erro ao reiniciar: " + e, "erro"); }
+};
 window.addEventListener("focus", conferirCadastros);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) conferirCadastros(); });
 

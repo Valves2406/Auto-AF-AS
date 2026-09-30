@@ -163,12 +163,13 @@ b { color: inherit; font-weight: 700; }
 }
 .versao:empty { display: none; }
 
-.ciena-bar {
+/* a barra da CIENA e o aviso de versão nova baixada têm a mesma forma */
+.ciena-bar, .att-bar {
   flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   flex-wrap: wrap; margin: 8px 16px 0; padding: 9px 16px; border-radius: var(--r-card);
   background: var(--soft); border: 1px solid var(--soft-bd); font-size: 12.5px;
 }
-.ciena-bar .btn { background: var(--primary); color: #fff; }
+.ciena-bar .btn, .att-bar .btn { background: var(--primary); color: #fff; }
 .ciena-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ciena-acoes select { max-width: min(360px, 100%); min-width: 0; }
 

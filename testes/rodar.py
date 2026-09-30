@@ -65,6 +65,7 @@ SUITES = [
     ("leitor_af_regras", "As regras do leitor de AF nos casos que ja quebraram"),
     ("banco_da_equipe", "Cadastros no banco da equipe, com e sem internet"),
     ("ciena_pacote", "CIENA: um projeto e o pacote com varios (AF + AS cada)"),
+    ("atualizacao_nuvem", "Versao nova pela internet: publicar, baixar, conferir e trocar"),
 ]
 
 

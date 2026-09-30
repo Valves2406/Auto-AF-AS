@@ -72,6 +72,9 @@ a = Analysis(
         # o banco da equipe e o leitor de AF: sem eles o .exe abre, mas sem
         # banco (listas velhas) ou sem "Ler AF/AS" — de novo em silêncio
         "core.banco", "core.leitor_af",
+        # atualização pela internet: importada dentro de funções (abertura e
+        # thread) — sem isto o .exe nunca se atualizaria, em silêncio
+        "core.atualizador_nuvem",
         "openpyxl", "pdfplumber", "pypdfium2", "reportlab",
     ],
     hookspath=[],

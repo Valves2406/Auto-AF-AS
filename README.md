@@ -60,6 +60,8 @@ backend/              tudo que roda em Python
     modelos.py        ItemAF, DadosProposta, moedas, valor por extenso em PT-BR
     dados_eletronet   catálogo (fornecedores, filiais, POPs), cadastro do usuário, migrações
     banco.py          os três cadastros no banco da equipe (Supabase), com cópia local
+    atualizador_nuvem versão nova pela internet (Supabase Storage): baixa em segundo
+                      plano, confere o SHA-256 e troca na próxima abertura
     extrator.py       lê a proposta: PDF de texto, seções numeradas, tabelas, OCR
     extrator_ciena.py o Excel do DDPTool da CIENA, que tem formato próprio
     aprendizado.py    aprende com as SUAS correções onde cada campo fica na proposta
@@ -80,7 +82,7 @@ frontend/             tudo que o navegador carrega
   imagens/            marca, faixa, símbolo, ícone e o logo da INTERFACE
 
 packaging/            AutoAF.spec — receita do PyInstaller
-testes/               41 suítes — ver "Testes" abaixo
+testes/               42 suítes — ver "Testes" abaixo
 ```
 
 Uma armadilha ao mexer nisto: `core/caminhos.py` acha a raiz do projeto subindo
